@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Eye, EyeOff, Lock, CheckCircle, XCircle } from 'lucide-react'
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -204,7 +204,7 @@ export default function ResetPasswordPage() {
           </div>
           <CardTitle>Nouveau mot de passe</CardTitle>
           <CardDescription>
-            Choisissez un nouveau mot de passe sécurisé pour votre compte
+            Choisissez un nouveau mot de passe sécurisé
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -219,27 +219,22 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Entrez votre nouveau mot de passe"
                   required
+                  className="pr-10"
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </Button>
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
               
-              {/* Critères de validation du mot de passe */}
+              {/* Indicateurs de validation du mot de passe */}
               {password && (
-                <div className="text-xs space-y-1">
+                <div className="space-y-1 text-sm">
                   <div className={`flex items-center gap-2 ${passwordValidation.minLength ? 'text-green-600' : 'text-red-600'}`}>
-                    {passwordValidation.minLength ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                    {passwordValidation.minLength ? <CheckCircle size={16} /> : <XCircle size={16} />}
                     Au moins 8 caractères
                   </div>
                 </div>
@@ -256,33 +251,31 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirmez votre nouveau mot de passe"
                   required
+                  className="pr-10"
                 />
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </Button>
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
               
+              {/* Indicateur de correspondance des mots de passe */}
               {confirmPassword && (
-                <div className={`text-xs flex items-center gap-2 ${passwordsMatch ? 'text-green-600' : 'text-red-600'}`}>
-                  {passwordsMatch ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                  {passwordsMatch ? 'Les mots de passe correspondent' : 'Les mots de passe ne correspondent pas'}
+                <div className={`flex items-center gap-2 text-sm ${passwordsMatch ? 'text-green-600' : 'text-red-600'}`}>
+                  {passwordsMatch ? <CheckCircle size={16} /> : <XCircle size={16} />}
+                  Les mots de passe correspondent
                 </div>
               )}
             </div>
 
             {message && (
-              <Alert variant={isSuccess ? "default" : "destructive"}>
-                <AlertDescription>{message}</AlertDescription>
+              <Alert className={isSuccess ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+                <AlertDescription className={isSuccess ? 'text-green-800' : 'text-red-800'}>
+                  {message}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -291,17 +284,50 @@ export default function ResetPasswordPage() {
               className="w-full" 
               disabled={isLoading || !passwordValidation.isValid || !passwordsMatch}
             >
-              {isLoading ? 'Réinitialisation...' : 'Réinitialiser le mot de passe'}
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Réinitialisation...
+                </>
+              ) : (
+                'Réinitialiser le mot de passe'
+              )}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
-            <Link href="/auth/login" className="text-sm text-blue-600 hover:underline">
+            <Link 
+              href="/auth/login" 
+              className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+            >
               Retour à la connexion
             </Link>
           </div>
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <Card className="w-full max-w-md">
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Chargement...</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ResetPasswordForm />
+    </Suspense>
   )
 } 
