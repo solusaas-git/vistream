@@ -357,25 +357,30 @@ function SignupForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-start justify-center pt-8 sm:pt-12 pb-4 sm:pb-8 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-5xl">
         {/* Logo and Back Button */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+        <div className="text-center mb-6 sm:mb-8">
+          <Link 
+            href="/" 
+            className="inline-flex items-center text-xs sm:text-sm text-muted-foreground hover:text-foreground mb-4 sm:mb-6 transition-colors duration-200 group"
+          >
+            <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 group-hover:-translate-x-1 transition-transform duration-200" />
             Retour à l'accueil
           </Link>
-          <div className="flex justify-center mb-4">
-            <Image
-              src="/logo.svg"
-              alt="Vistream Logo"
-              width={48}
-              height={48}
-              className="w-12 h-12"
-            />
+          <div className="flex justify-center mb-3 sm:mb-4">
+            <div className="p-2 sm:p-3 bg-gray-800 rounded-full shadow-md border border-gray-700">
+              <Image
+                src="/logo.svg"
+                alt="Vistream Logo"
+                width={48}
+                height={48}
+                className="w-10 h-10 sm:w-12 sm:h-12"
+              />
+            </div>
           </div>
-          <h1 className="text-2xl font-bold">Créer un compte</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Créer un compte</h1>
+          <p className="text-muted-foreground mt-1 sm:mt-2 text-sm sm:text-base">
             {selectedPlan ? `Rejoignez Vistream avec le plan ${selectedPlan.name}` : 'Rejoignez Vistream et choisissez votre plan'}
           </p>
         </div>

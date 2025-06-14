@@ -18,7 +18,11 @@ import {
   Save,
   ArrowLeft,
   Phone,
-  ChevronDown
+  ChevronDown,
+  Calendar,
+  CheckCircle,
+  AlertCircle,
+  Loader2
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -125,6 +129,8 @@ export default function AdminProfile() {
       if (data.success) {
         setMessage('Profil mis à jour avec succès')
         setUser(prev => prev ? { ...prev, firstName, lastName, email, phonePrefix, phoneNumber } : null)
+        // Clear message after 3 seconds
+        setTimeout(() => setMessage(''), 3000)
       } else {
         setError(data.message || 'Erreur lors de la mise à jour')
       }
@@ -172,6 +178,8 @@ export default function AdminProfile() {
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
+        // Clear message after 3 seconds
+        setTimeout(() => setMessage(''), 3000)
       } else {
         setError(data.message || 'Erreur lors du changement de mot de passe')
       }
@@ -186,11 +194,11 @@ export default function AdminProfile() {
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'admin':
-        return <Crown className="h-4 w-4" />
+        return <Crown className="h-4 w-4 sm:h-5 sm:w-5" />
       case 'user':
-        return <Shield className="h-4 w-4" />
+        return <Shield className="h-4 w-4 sm:h-5 sm:w-5" />
       default:
-        return <User className="h-4 w-4" />
+        return <User className="h-4 w-4 sm:h-5 sm:w-5" />
     }
   }
 
@@ -205,39 +213,69 @@ export default function AdminProfile() {
     }
   }
 
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'Administrateur'
+      case 'customer':
+        return 'Client'
+      case 'user':
+        return 'Utilisateur'
+      default:
+        return role
+    }
+  }
+
   if (loading) {
     return (
-      <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-[400px] sm:min-h-[500px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 sm:h-12 sm:w-12 animate-spin text-primary mx-auto" />
+          <p className="mt-4 text-sm sm:text-base text-muted-foreground">Chargement du profil...</p>
+        </div>
       </div>
     )
   }
 
   if (!user) {
     return (
-      <div className="text-center py-8">
-        <p className="text-muted-foreground">Impossible de charger le profil utilisateur</p>
+      <div className="flex items-center justify-center min-h-[400px] sm:min-h-[500px]">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardContent className="p-6 sm:p-8 text-center">
+            <AlertCircle className="h-10 w-10 sm:h-12 sm:w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-lg sm:text-xl font-bold mb-2">Erreur de chargement</h2>
+            <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
+              Impossible de charger le profil utilisateur
+            </p>
+            <Button 
+              onClick={() => window.location.reload()}
+              className="w-full h-10 sm:h-12"
+            >
+              Réessayer
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <User className="h-8 w-8" />
-            Mon Profil
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3">
+            <User className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0" />
+            <span className="truncate">Mon Profil</span>
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">
             Gérez vos informations personnelles et paramètres de sécurité
           </p>
         </div>
         <Button
           variant="outline"
           onClick={() => window.location.href = '/admin'}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 w-full sm:w-auto h-10 sm:h-auto"
         >
           <ArrowLeft className="h-4 w-4" />
           Retour
@@ -246,63 +284,90 @@ export default function AdminProfile() {
 
       {/* Messages */}
       {message && (
-        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
-          {message}
+        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg flex items-center gap-2 shadow-sm">
+          <CheckCircle className="h-4 w-4 flex-shrink-0" />
+          <span className="text-sm sm:text-base">{message}</span>
         </div>
       )}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-          {error}
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center gap-2 shadow-sm">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <span className="text-sm sm:text-base">{error}</span>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         {/* Profile Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
+        <Card className="shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <User className="h-4 w-4 sm:h-5 sm:w-5" />
               Informations du Profil
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 sm:space-y-6">
             {/* User Info Display */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center">
-                    {getRoleIcon(user.role)}
-                  </div>
-                                     <div>
-                     <p className="font-medium">{user.firstName} {user.lastName}</p>
-                     <p className="text-sm text-muted-foreground">{user.email}</p>
-                     <div className="flex items-center gap-2 mt-1">
-                       <Badge variant={getRoleBadgeVariant(user.role)}>
-                         {user.role === 'admin' ? 'Administrateur' : user.role}
-                       </Badge>
-                       {user.isVerified && (
-                         <Badge variant="secondary" className="text-xs">
-                           Vérifié
-                         </Badge>
-                       )}
-                     </div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg space-y-3 sm:space-y-0">
+                <div className="flex items-center gap-3 min-w-0">
+                                     <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center flex-shrink-0 shadow-md text-white">
+                     {getRoleIcon(user.role)}
                    </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm sm:text-base truncate">{user.firstName} {user.lastName}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate">{user.email}</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <Badge variant={getRoleBadgeVariant(user.role)} className="text-xs">
+                        {getRoleDisplayName(user.role)}
+                      </Badge>
+                      {user.isVerified && (
+                        <Badge variant="secondary" className="text-xs px-2 py-0.5 h-5 w-fit">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Vérifié
+                        </Badge>
+                      )}
+                      <Badge 
+                        variant={user.isActive ? "secondary" : "outline"} 
+                        className={`text-xs px-2 py-0.5 h-5 w-fit ${user.isActive ? 'bg-green-100 text-green-800' : 'text-gray-600'}`}
+                      >
+                        {user.isActive ? 'Actif' : 'Inactif'}
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Membre depuis</p>
-                  <p className="font-medium">
-                    {new Date(user.createdAt).toLocaleDateString('fr-FR')}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="h-4 w-4 text-blue-600" />
+                    <p className="text-blue-800 font-medium">Membre depuis</p>
+                  </div>
+                  <p className="text-blue-700 font-semibold">
+                    {new Date(user.createdAt).toLocaleDateString('fr-FR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
                   </p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Statut</p>
-                  <p className="font-medium">
-                    {user.isActive ? 'Actif' : 'Inactif'}
-                  </p>
-                </div>
+                {user.lastLogin && (
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <p className="text-green-800 font-medium">Dernière connexion</p>
+                    </div>
+                    <p className="text-green-700 font-semibold">
+                      {new Date(user.lastLogin).toLocaleDateString('fr-FR', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -310,17 +375,17 @@ export default function AdminProfile() {
 
             {/* Update Profile Form */}
             <form onSubmit={handleUpdateProfile} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="firstName">Prénom</Label>
-                  <div className="relative">
+                  <Label htmlFor="firstName" className="text-sm font-medium">Prénom</Label>
+                  <div className="relative mt-1">
                     <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="firstName"
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 h-10 sm:h-auto"
                       placeholder="Jean"
                       required
                     />
@@ -328,15 +393,15 @@ export default function AdminProfile() {
                 </div>
 
                 <div>
-                  <Label htmlFor="lastName">Nom</Label>
-                  <div className="relative">
+                  <Label htmlFor="lastName" className="text-sm font-medium">Nom</Label>
+                  <div className="relative mt-1">
                     <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="lastName"
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 h-10 sm:h-auto"
                       placeholder="Dupont"
                       required
                     />
@@ -345,15 +410,15 @@ export default function AdminProfile() {
               </div>
 
               <div>
-                <Label htmlFor="email">Adresse Email</Label>
-                <div className="relative">
+                <Label htmlFor="email" className="text-sm font-medium">Adresse Email</Label>
+                <div className="relative mt-1">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 h-10 sm:h-auto"
                     placeholder="votre@email.com"
                     required
                   />
@@ -361,16 +426,16 @@ export default function AdminProfile() {
               </div>
 
               <div>
-                <Label>Numéro de téléphone</Label>
-                <div className="flex space-x-2">
+                <Label className="text-sm font-medium">Numéro de téléphone</Label>
+                <div className="flex space-x-2 mt-1">
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                      className="flex items-center space-x-2 px-3 py-2 border border-input bg-background rounded-md text-sm w-24 justify-between hover:bg-accent h-10"
+                      className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 border border-input bg-background rounded-md text-sm w-20 sm:w-24 justify-between hover:bg-accent h-10 transition-colors"
                     >
-                      <span>{countries.find(c => c.code === phonePrefix)?.flag || '🇫🇷'}</span>
-                      <span className="text-xs">{phonePrefix}</span>
+                      <span className="text-xs sm:text-sm">{countries.find(c => c.code === phonePrefix)?.flag || '🇫🇷'}</span>
+                      <span className="text-xs hidden sm:inline">{phonePrefix}</span>
                       <ChevronDown className="h-3 w-3" />
                     </button>
                     {showCountryDropdown && (
@@ -383,7 +448,7 @@ export default function AdminProfile() {
                               setPhonePrefix(country.code)
                               setShowCountryDropdown(false)
                             }}
-                            className="flex items-center space-x-3 px-3 py-2 text-sm hover:bg-accent w-full text-left"
+                            className="flex items-center space-x-3 px-3 py-2 text-sm hover:bg-accent w-full text-left transition-colors"
                           >
                             <span>{country.flag}</span>
                             <span className="flex-1">{country.name}</span>
@@ -400,7 +465,7 @@ export default function AdminProfile() {
                       type="tel"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 h-10 sm:h-auto"
                       placeholder="6 12 34 56 78"
                       required
                     />
@@ -408,40 +473,50 @@ export default function AdminProfile() {
                 </div>
               </div>
 
-              <Button type="submit" disabled={saving} className="w-full">
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Mise à jour...' : 'Mettre à jour le profil'}
+              <Button type="submit" disabled={saving} className="w-full h-10 sm:h-auto">
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Mise à jour...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Mettre à jour le profil
+                  </>
+                )}
               </Button>
             </form>
           </CardContent>
         </Card>
 
         {/* Change Password */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lock className="h-5 w-5" />
+        <Card className="shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Lock className="h-4 w-4 sm:h-5 sm:w-5" />
               Changer le Mot de Passe
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div>
-                <Label htmlFor="currentPassword">Mot de passe actuel</Label>
-                <div className="relative">
+                <Label htmlFor="currentPassword" className="text-sm font-medium">Mot de passe actuel</Label>
+                <div className="relative mt-1">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="currentPassword"
                     type={showCurrentPassword ? 'text' : 'password'}
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="pl-10 pr-10"
+                    className="pl-10 pr-10 h-10 sm:h-auto"
+                    placeholder="Votre mot de passe actuel"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -449,54 +524,68 @@ export default function AdminProfile() {
               </div>
 
               <div>
-                <Label htmlFor="newPassword">Nouveau mot de passe</Label>
-                <div className="relative">
+                <Label htmlFor="newPassword" className="text-sm font-medium">Nouveau mot de passe</Label>
+                <div className="relative mt-1">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="newPassword"
                     type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="pl-10 pr-10"
+                    className="pl-10 pr-10 h-10 sm:h-auto"
+                    placeholder="Nouveau mot de passe (min. 8 caractères)"
                     required
                     minLength={8}
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Le mot de passe doit contenir au moins 8 caractères
+                </p>
               </div>
 
               <div>
-                <Label htmlFor="confirmPassword">Confirmer le nouveau mot de passe</Label>
-                <div className="relative">
+                <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirmer le nouveau mot de passe</Label>
+                <div className="relative mt-1">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-10 pr-10"
+                    className="pl-10 pr-10 h-10 sm:h-auto"
+                    placeholder="Confirmez votre nouveau mot de passe"
                     required
                     minLength={8}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
 
-              <Button type="submit" disabled={saving} className="w-full">
-                <Lock className="h-4 w-4 mr-2" />
-                {saving ? 'Modification...' : 'Changer le mot de passe'}
+              <Button type="submit" disabled={saving} className="w-full h-10 sm:h-auto">
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Modification...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="h-4 w-4 mr-2" />
+                    Changer le mot de passe
+                  </>
+                )}
               </Button>
             </form>
           </CardContent>

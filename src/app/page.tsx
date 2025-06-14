@@ -278,50 +278,6 @@ export default function Home() {
           details: 'Audits de sécurité réguliers et certifications maintenues. Documentation complète pour vos audits internes.'
         }
       ]
-    },
-    {
-      id: 'infrastructure',
-      title: 'Infrastructure',
-      icon: <Server className="h-5 w-5" />,
-      description: 'CDN global et infrastructure cloud auto-scalable',
-      items: [
-        { 
-          icon: <Globe className="h-5 w-5 text-blue-500" />, 
-          title: 'CDN 6 continents', 
-          description: 'Points de présence optimisés pour une latence minimale',
-          details: 'Serveurs edge dans 50+ pays avec routage intelligent. Mise en cache adaptative et pré-positionnement de contenu.'
-        },
-        { 
-          icon: <Zap className="h-5 w-5 text-yellow-500" />, 
-          title: 'Auto-scaling intelligent', 
-          description: 'Adaptation automatique aux pics de trafic',
-          details: 'Provisioning dynamique basé sur l\'IA prédictive. Gestion automatique de la charge avec 0 downtime.'
-        },
-        { 
-          icon: <Activity className="h-5 w-5 text-green-500" />, 
-          title: 'SLA 99,99% uptime', 
-          description: 'Garantie de disponibilité avec redondance multi-zones',
-          details: 'Architecture multi-cloud avec failover automatique. Monitoring 24/7 et intervention proactive en cas d\'incident.'
-        },
-        { 
-          icon: <Gauge className="h-5 w-5 text-purple-500" />, 
-          title: 'Optimisation bande passante', 
-          description: 'Compression intelligente et streaming adaptatif',
-          details: 'Algorithmes de compression perceptuelle. Adaptation automatique de la qualité selon la connexion utilisateur.'
-        },
-        { 
-          icon: <Code className="h-5 w-5 text-orange-500" />, 
-          title: 'APIs RESTful complètes', 
-          description: 'Intégration facile avec vos systèmes existants',
-          details: 'Documentation OpenAPI 3.0 complète. SDKs disponibles en 10+ langages avec exemples de code.'
-        },
-        { 
-          icon: <Plug className="h-5 w-5 text-indigo-500" />, 
-          title: 'Webhooks temps réel', 
-          description: 'Notifications instantanées pour tous les événements',
-          details: 'Système de webhooks fiable avec retry automatique. Filtrage avancé et transformation de payload personnalisable.'
-        }
-      ]
     }
   ]
 
@@ -386,7 +342,7 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* HERO SECTION */}
-      <section id="hero" className="relative h-screen flex items-center justify-center text-white overflow-hidden">
+      <section id="hero" className="relative min-h-screen flex items-center justify-center text-white overflow-hidden pt-16 sm:pt-20 lg:pt-24">
         {/* Background Video */}
         <div className="absolute inset-0 z-0">
           <video
@@ -408,25 +364,25 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900/70 to-slate-700/70"></div>
         </div>
 
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <motion.div
             initial={{ opacity: 0, scale: 1.05 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8 }}
-            className="text-center max-w-4xl mx-auto"
+            className="text-center max-w-5xl mx-auto"
           >
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold mb-6 sm:mb-8 leading-tight">
               Streaming vidéo 100% IA
             </h1>
-            <p className="text-xl md:text-2xl mb-10 text-slate-100 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl md:text-2xl lg:text-2xl mb-8 sm:mb-10 text-slate-100 max-w-4xl mx-auto leading-relaxed px-4 sm:px-0">
               Diffusez, analysez et monétisez vos vidéos en quelques clics. 
               Notre IA améliore la qualité et prédit l'engagement.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-6 justify-center mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center mb-12 px-4 sm:px-0">
               <Button 
                 size="lg" 
-                className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-4 shadow-lg hover:shadow-xl transition-all duration-300"
+                className="bg-blue-600 hover:bg-blue-700 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
                 onClick={() => {
                   const element = document.querySelector('#pricing')
                   if (element) {
@@ -443,7 +399,7 @@ export default function Home() {
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="border-2 border-white text-white hover:bg-white hover:text-slate-900 text-lg px-8 py-4 backdrop-blur-sm bg-white/10 transition-all duration-300"
+                className="border-2 border-white text-white hover:bg-white hover:text-slate-900 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 backdrop-blur-sm bg-white/10 transition-all duration-300 w-full sm:w-auto"
                 onClick={() => {
                   const element = document.querySelector('#pricing')
                   if (element) {
@@ -459,7 +415,7 @@ export default function Home() {
             </div>
 
             {/* Ultra-Elegant Feature Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 max-w-5xl mx-auto">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mt-12 sm:mt-16 max-w-5xl mx-auto px-4 sm:px-0">
               <motion.div
                 initial={{ opacity: 0, y: 60, scale: 0.8 }}
                 animate={{ 
@@ -478,7 +434,7 @@ export default function Home() {
                   rotateY: 5,
                   rotateX: 5
                 }}
-                className="group relative bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-6 text-center border border-white/30 hover:border-white/50 transition-all duration-500 shadow-2xl hover:shadow-blue-500/20"
+                className="group relative bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 text-center border border-white/30 hover:border-white/50 transition-all duration-500 shadow-2xl hover:shadow-blue-500/20"
                               >
                 <motion.div
                   animate={{ 
@@ -495,13 +451,13 @@ export default function Home() {
                   <motion.div 
                     whileHover={{ scale: 1.1, rotate: [0, -10, 10, 0] }}
                     transition={{ duration: 0.6 }}
-                    className="relative w-16 h-16 bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl group-hover:shadow-blue-500/40"
+                    className="relative w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-xl group-hover:shadow-blue-500/40"
                   >
-                    <Brain className="w-8 h-8 text-white drop-shadow-lg" />
+                    <Brain className="w-6 h-6 sm:w-8 sm:h-8 text-white drop-shadow-lg" />
                     <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent rounded-2xl"></div>
                   </motion.div>
-                  <h3 className="font-bold text-white text-base mb-2 tracking-wide">IA Upscaling</h3>
-                  <p className="text-white/80 text-sm font-medium">Amélioration 8K</p>
+                  <h3 className="font-bold text-white text-sm sm:text-base mb-1 sm:mb-2 tracking-wide">IA Upscaling</h3>
+                  <p className="text-white/80 text-xs sm:text-sm font-medium">Amélioration 8K</p>
                   <div className="absolute top-2 right-2 w-2 h-2 bg-blue-400 rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </motion.div>
               </motion.div>
@@ -524,7 +480,7 @@ export default function Home() {
                   rotateY: 5,
                   rotateX: 5
                 }}
-                className="group relative bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-6 text-center border border-white/30 hover:border-white/50 transition-all duration-500 shadow-2xl hover:shadow-green-500/20"
+                className="group relative bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 text-center border border-white/30 hover:border-white/50 transition-all duration-500 shadow-2xl hover:shadow-green-500/20"
               >
                 <motion.div
                   animate={{ 
@@ -541,13 +497,13 @@ export default function Home() {
                   <motion.div 
                     whileHover={{ scale: 1.1, rotate: [0, -10, 10, 0] }}
                     transition={{ duration: 0.6 }}
-                    className="relative w-16 h-16 bg-gradient-to-br from-green-400 via-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl group-hover:shadow-green-500/40"
+                    className="relative w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-green-400 via-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-xl group-hover:shadow-green-500/40"
                   >
-                    <BarChart3 className="w-8 h-8 text-white drop-shadow-lg" />
+                    <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 text-white drop-shadow-lg" />
                     <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent rounded-2xl"></div>
                   </motion.div>
-                  <h3 className="font-bold text-white text-base mb-2 tracking-wide">Analytics</h3>
-                  <p className="text-white/80 text-sm font-medium">Insights Prédictifs</p>
+                  <h3 className="font-bold text-white text-sm sm:text-base mb-1 sm:mb-2 tracking-wide">Analytics</h3>
+                  <p className="text-white/80 text-xs sm:text-sm font-medium">Insights Prédictifs</p>
                   <div className="absolute top-2 right-2 w-2 h-2 bg-green-400 rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </motion.div>
               </motion.div>
@@ -570,7 +526,7 @@ export default function Home() {
                   rotateY: 5,
                   rotateX: 5
                 }}
-                className="group relative bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-6 text-center border border-white/30 hover:border-white/50 transition-all duration-500 shadow-2xl hover:shadow-purple-500/20"
+                className="group relative bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 text-center border border-white/30 hover:border-white/50 transition-all duration-500 shadow-2xl hover:shadow-purple-500/20"
               >
                 <motion.div
                   animate={{ 
@@ -587,13 +543,13 @@ export default function Home() {
                   <motion.div 
                     whileHover={{ scale: 1.1, rotate: [0, -10, 10, 0] }}
                     transition={{ duration: 0.6 }}
-                    className="relative w-16 h-16 bg-gradient-to-br from-purple-400 via-purple-500 to-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl group-hover:shadow-purple-500/40"
+                    className="relative w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-400 via-purple-500 to-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-xl group-hover:shadow-purple-500/40"
                   >
-                    <Shield className="w-8 h-8 text-white drop-shadow-lg" />
+                    <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-white drop-shadow-lg" />
                     <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent rounded-2xl"></div>
                   </motion.div>
-                  <h3 className="font-bold text-white text-base mb-2 tracking-wide">Sécurité</h3>
-                  <p className="text-white/80 text-sm font-medium">DRM Enterprise</p>
+                  <h3 className="font-bold text-white text-sm sm:text-base mb-1 sm:mb-2 tracking-wide">Sécurité</h3>
+                  <p className="text-white/80 text-xs sm:text-sm font-medium">DRM Enterprise</p>
                   <div className="absolute top-2 right-2 w-2 h-2 bg-purple-400 rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </motion.div>
               </motion.div>
@@ -616,7 +572,7 @@ export default function Home() {
                   rotateY: 5,
                   rotateX: 5
                 }}
-                className="group relative bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-6 text-center border border-white/30 hover:border-white/50 transition-all duration-500 shadow-2xl hover:shadow-cyan-500/20"
+                className="group relative bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-4 sm:p-6 text-center border border-white/30 hover:border-white/50 transition-all duration-500 shadow-2xl hover:shadow-cyan-500/20"
               >
                 <motion.div
                   animate={{ 
@@ -633,13 +589,13 @@ export default function Home() {
                   <motion.div 
                     whileHover={{ scale: 1.1, rotate: [0, -10, 10, 0] }}
                     transition={{ duration: 0.6 }}
-                    className="relative w-16 h-16 bg-gradient-to-br from-cyan-400 via-cyan-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl group-hover:shadow-cyan-500/40"
+                    className="relative w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-cyan-400 via-cyan-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-xl group-hover:shadow-cyan-500/40"
                   >
-                    <Globe className="w-8 h-8 text-white drop-shadow-lg" />
+                    <Globe className="w-6 h-6 sm:w-8 sm:h-8 text-white drop-shadow-lg" />
                     <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent rounded-2xl"></div>
                   </motion.div>
-                  <h3 className="font-bold text-white text-base mb-2 tracking-wide">Global CDN</h3>
-                  <p className="text-white/80 text-sm font-medium">99.9% Uptime</p>
+                  <h3 className="font-bold text-white text-sm sm:text-base mb-1 sm:mb-2 tracking-wide">Global CDN</h3>
+                  <p className="text-white/80 text-xs sm:text-sm font-medium">99.9% Uptime</p>
                   <div className="absolute top-2 right-2 w-2 h-2 bg-cyan-400 rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </motion.div>
               </motion.div>
@@ -676,11 +632,11 @@ export default function Home() {
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-10">
+        <div className="absolute bottom-8 sm:bottom-12 left-1/2 transform -translate-x-1/2 z-10">
           <motion.div
             animate={{ y: [0, 10, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="text-white/70 cursor-pointer"
+            className="text-white/70 cursor-pointer text-center"
             onClick={() => {
               const element = document.querySelector('#advantages')
               if (element) {
@@ -691,26 +647,26 @@ export default function Home() {
               }
             }}
           >
-            <svg className="w-6 h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
             </svg>
-            <span className="block text-xs">Découvrir</span>
+            <span className="block text-xs sm:text-sm">Découvrir</span>
           </motion.div>
         </div>
       </section>
 
       {/* ADVANTAGES SECTION */}
-      <section id="advantages" className="py-16 bg-background">
-        <div className="container mx-auto px-4 max-w-6xl">
+      <section id="advantages" className="py-12 sm:py-16 lg:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <motion.div
             variants={containerVariants}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
-            className="text-center mb-12"
+            className="text-center mb-8 sm:mb-12 lg:mb-16"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Pourquoi Vistream ?</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 lg:mb-6">Pourquoi Vistream ?</h2>
+            <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto px-4 sm:px-0">
               Plateforme de streaming vidéo alimentée par l'IA
             </p>
           </motion.div>
@@ -720,7 +676,7 @@ export default function Home() {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8"
           >
             {advantages.map((advantage, index) => {
               const colorSchemes = [
@@ -773,12 +729,12 @@ export default function Home() {
               return (
                 <motion.div key={index} variants={itemVariants}>
                   <Card className={`h-full hover:shadow-xl transition-all duration-300 border-2 ${scheme.bg} ${scheme.border} hover:scale-105`}>
-                    <CardContent className="p-6">
-                      <div className={`inline-flex p-3 rounded-xl ${scheme.iconBg} mb-4 shadow-lg`}>
+                    <CardContent className="p-4 sm:p-6 lg:p-8">
+                      <div className={`inline-flex p-2.5 sm:p-3 lg:p-4 rounded-xl ${scheme.iconBg} mb-3 sm:mb-4 lg:mb-6 shadow-lg`}>
                         <div className={scheme.iconColor}>{advantage.icon}</div>
                       </div>
-                      <h3 className="font-bold text-lg mb-3 text-gray-800">{advantage.title}</h3>
-                      <p className="text-gray-600 text-sm leading-relaxed">{advantage.description}</p>
+                      <h3 className="font-bold text-base sm:text-lg lg:text-xl mb-2 sm:mb-3 lg:mb-4 text-gray-800">{advantage.title}</h3>
+                      <p className="text-gray-600 text-sm sm:text-base leading-relaxed">{advantage.description}</p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -789,51 +745,51 @@ export default function Home() {
       </section>
 
       {/* FEATURES SECTION */}
-      <section id="features" className="py-16 bg-muted/30">
-        <div className="container mx-auto px-4 max-w-6xl">
+      <section id="features" className="py-12 sm:py-16 lg:py-20 bg-muted/30">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-12"
+            className="text-center mb-8 sm:mb-12 lg:mb-16"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Fonctionnalités IA</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 lg:mb-6">Fonctionnalités IA</h2>
+            <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto px-4 sm:px-0">
               Découvrez nos technologies d'intelligence artificielle
             </p>
           </motion.div>
 
           <Card className="bg-background/80 backdrop-blur-sm">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6 lg:p-8">
               <Tabs defaultValue="ai-analysis" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-8">
+                <TabsList className="grid w-full grid-cols-3 mb-6 sm:mb-8 lg:mb-10 h-auto p-1">
                   {features.map((feature) => (
-                    <TabsTrigger key={feature.id} value={feature.id} className="flex items-center gap-2">
-                      {feature.icon}
-                      <span className="hidden sm:inline">{feature.title}</span>
+                    <TabsTrigger key={feature.id} value={feature.id} className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm">
+                      <span className="flex-shrink-0">{feature.icon}</span>
+                      <span className="hidden xs:inline sm:inline truncate">{feature.title}</span>
                     </TabsTrigger>
                   ))}
                 </TabsList>
                 
                 {features.map((feature) => (
                   <TabsContent key={feature.id} value={feature.id} className="mt-0">
-                    <div className="text-center mb-6">
-                      <h3 className="text-2xl font-bold mb-2">{feature.title}</h3>
-                      <p className="text-muted-foreground">{feature.description}</p>
+                    <div className="text-center mb-4 sm:mb-6 lg:mb-8">
+                      <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 sm:mb-3">{feature.title}</h3>
+                      <p className="text-sm sm:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto px-4 sm:px-0">{feature.description}</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
                       {feature.items.map((item, index) => (
                         <Card key={index} className="border-0 bg-muted/50 hover:bg-muted/70 transition-all duration-300 group">
-                          <CardContent className="p-6">
-                            <div className="flex items-start space-x-4">
-                              <div className="flex-shrink-0 p-2 rounded-lg bg-background/80 group-hover:scale-110 transition-transform duration-300">
-                                {item.icon}
+                          <CardContent className="p-4 sm:p-6 lg:p-6">
+                            <div className="flex items-start space-x-3 sm:space-x-4">
+                              <div className="flex-shrink-0 p-1.5 sm:p-2 rounded-lg bg-background/80 group-hover:scale-110 transition-transform duration-300">
+                                <span className="block w-4 h-4 sm:w-5 sm:h-5">{item.icon}</span>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold mb-2 text-base text-foreground">{item.title}</h4>
-                                <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{item.description}</p>
+                                <h4 className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base text-foreground">{item.title}</h4>
+                                <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 leading-relaxed">{item.description}</p>
                                 {(item as any).details && (
-                                  <p className="text-xs text-muted-foreground/80 leading-relaxed border-l-2 border-primary/20 pl-3">
+                                  <p className="text-xs sm:text-xs text-muted-foreground/80 leading-relaxed border-l-2 border-primary/20 pl-2 sm:pl-3 mt-1 sm:mt-2">
                                     {(item as any).details}
                                   </p>
                                 )}
@@ -852,26 +808,28 @@ export default function Home() {
       </section>
 
       {/* SOCIAL PROOF SECTION */}
-      <section className="py-12 bg-background">
-        <div className="container mx-auto px-4 max-w-4xl">
+      <section className="py-12 sm:py-16 lg:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center"
           >
-            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-100">
-              <CardContent className="p-8">
-                <Quote className="h-8 w-8 text-primary mx-auto mb-4" />
-                <blockquote className="text-xl md:text-2xl font-medium mb-4">
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <CardContent className="p-6 sm:p-8 lg:p-10">
+                <Quote className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-primary mx-auto mb-3 sm:mb-4 lg:mb-6" />
+                <blockquote className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-medium mb-3 sm:mb-4 lg:mb-6 leading-relaxed px-2 sm:px-4">
                   "Grâce à Vistream, notre taux de rétention vidéo a grimpé de 42%."
                 </blockquote>
-                <cite className="text-muted-foreground">– Pierre M., EdTech Lyon</cite>
-                <div className="flex justify-center items-center mt-6 space-x-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-current text-yellow-400" />
-                  ))}
-                  <span className="ml-2 text-sm font-medium">4,9/5 sur SaaS Reviews</span>
+                <cite className="text-sm sm:text-base text-muted-foreground font-medium">– Pierre M., EdTech Lyon</cite>
+                <div className="flex flex-col sm:flex-row justify-center items-center mt-4 sm:mt-6 lg:mt-8 gap-2 sm:gap-1">
+                  <div className="flex items-center space-x-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-4 w-4 sm:h-5 sm:w-5 fill-current text-yellow-400" />
+                    ))}
+                  </div>
+                  <span className="text-xs sm:text-sm lg:text-base font-medium text-muted-foreground sm:ml-2">4,9/5 sur SaaS Reviews</span>
                 </div>
               </CardContent>
             </Card>
@@ -883,28 +841,28 @@ export default function Home() {
       <PricingSection />
 
       {/* FAQ SECTION */}
-      <section id="faq" className="py-16 bg-background">
-        <div className="container mx-auto px-4 max-w-4xl">
+      <section id="faq" className="py-12 sm:py-16 lg:py-20 bg-background">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-12"
+            className="text-center mb-8 sm:mb-12 lg:mb-16"
           >
-            <HelpCircle className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Questions fréquentes</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">
+            <HelpCircle className="h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 text-primary mx-auto mb-3 sm:mb-4 lg:mb-6" />
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 lg:mb-6">Questions fréquentes</h2>
+            <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto mb-4 sm:mb-6 lg:mb-8 px-4 sm:px-0">
               Trouvez rapidement les réponses à vos questions
             </p>
 
-            <div className="relative max-w-md mx-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <div className="relative max-w-sm sm:max-w-md lg:max-w-lg mx-auto">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 sm:h-5 sm:w-5" />
               <Input
                 type="text"
                 placeholder="Rechercher dans les FAQ..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 sm:pl-12 py-2 sm:py-3 text-sm sm:text-base"
               />
             </div>
           </motion.div>
@@ -914,18 +872,18 @@ export default function Home() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <Card>
+            <Card className="shadow-lg">
               <CardContent className="p-0">
                 <Accordion type="single" collapsible className="w-full">
                   {filteredFaqs.map((faq) => (
-                    <AccordionItem key={faq.id} value={faq.id} className="border-b last:border-b-0 px-6">
-                      <AccordionTrigger className="hover:no-underline py-4">
-                        <span className="text-left font-semibold text-sm">
+                    <AccordionItem key={faq.id} value={faq.id} className="border-b last:border-b-0 px-4 sm:px-6 lg:px-8">
+                      <AccordionTrigger className="hover:no-underline py-3 sm:py-4 lg:py-5">
+                        <span className="text-left font-semibold text-sm sm:text-base lg:text-lg pr-4">
                           {faq.question}
                         </span>
                       </AccordionTrigger>
-                      <AccordionContent className="pb-4 pt-0">
-                        <p className="text-muted-foreground text-sm leading-relaxed">
+                      <AccordionContent className="pb-3 sm:pb-4 lg:pb-6 pt-0">
+                        <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
                           {faq.answer}
                         </p>
                       </AccordionContent>
@@ -939,16 +897,16 @@ export default function Home() {
       </section>
 
       {/* CONTACT SECTION */}
-      <section id="contact" className="py-16 bg-muted/30">
-        <div className="container mx-auto px-4 max-w-6xl">
+      <section id="contact" className="py-12 sm:py-16 lg:py-20 bg-muted/30">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-12"
+            className="text-center mb-8 sm:mb-12 lg:mb-16"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Contactez-nous</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 lg:mb-6">Contactez-nous</h2>
+            <p className="text-base sm:text-lg lg:text-xl text-muted-foreground max-w-3xl mx-auto px-4 sm:px-0">
               Notre équipe est là pour répondre à toutes vos questions
             </p>
           </motion.div>
@@ -957,30 +915,30 @@ export default function Home() {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="text-center max-w-md mx-auto"
+              className="text-center max-w-sm sm:max-w-md lg:max-w-lg mx-auto"
             >
-              <Card className="bg-green-50 border-green-200">
-                <CardContent className="p-8">
-                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold mb-2">Message envoyé !</h3>
-                  <p className="text-muted-foreground mb-4">
+              <Card className="bg-green-50 border-green-200 shadow-lg">
+                <CardContent className="p-6 sm:p-8 lg:p-10">
+                  <CheckCircle className="h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 text-green-500 mx-auto mb-3 sm:mb-4 lg:mb-6" />
+                  <h3 className="text-lg sm:text-xl lg:text-2xl font-bold mb-2 sm:mb-3">Message envoyé !</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
                     Notre équipe vous répondra sous 24h.
                   </p>
-                  <Button onClick={() => setIsSubmitted(false)} variant="outline">
+                  <Button onClick={() => setIsSubmitted(false)} variant="outline" className="w-full sm:w-auto">
                     Nouveau message
                   </Button>
                 </CardContent>
               </Card>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Envoyer un message</CardTitle>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
+              <Card className="shadow-lg">
+                <CardHeader className="pb-4 sm:pb-6">
+                  <CardTitle className="text-lg sm:text-xl lg:text-2xl">Envoyer un message</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -1031,7 +989,7 @@ export default function Home() {
                             <FormControl>
                               <Textarea
                                 placeholder="Décrivez votre projet..."
-                                className="min-h-[100px]"
+                                className="min-h-[100px] sm:min-h-[120px] lg:min-h-[140px]"
                                 {...field}
                               />
                             </FormControl>
@@ -1057,39 +1015,39 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informations de contact</CardTitle>
+              <Card className="shadow-lg">
+                <CardHeader className="pb-4 sm:pb-6">
+                  <CardTitle className="text-lg sm:text-xl lg:text-2xl">Informations de contact</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-start space-x-3">
-                    <MapPin className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-semibold">Adresse</p>
-                      <p className="text-sm text-muted-foreground">
+                <CardContent className="space-y-4 sm:space-y-6 pt-0">
+                  <div className="flex items-start space-x-3 sm:space-x-4">
+                    <MapPin className="h-5 w-5 sm:h-6 sm:w-6 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm sm:text-base lg:text-lg mb-1">Adresse</p>
+                      <p className="text-xs sm:text-sm lg:text-base text-muted-foreground leading-relaxed">
                         LT. RADU BELLER NR. 3-5 SECT. 1<br />BUCURESTI SECTORUL 1<br />Roumanie
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-start space-x-3">
-                    <Mail className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-semibold">Support</p>
-                      <p className="text-sm text-muted-foreground">support@vistream.net</p>
+                  <div className="flex items-start space-x-3 sm:space-x-4">
+                    <Mail className="h-5 w-5 sm:h-6 sm:w-6 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm sm:text-base lg:text-lg mb-1">Support</p>
+                      <p className="text-xs sm:text-sm lg:text-base text-muted-foreground break-all">support@vistream.net</p>
                     </div>
                   </div>
-                  <div className="flex items-start space-x-3">
-                    <Phone className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-semibold">Téléphone</p>
-                      <p className="text-sm text-muted-foreground">+33 6 67 31 95 99</p>
+                  <div className="flex items-start space-x-3 sm:space-x-4">
+                    <Phone className="h-5 w-5 sm:h-6 sm:w-6 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm sm:text-base lg:text-lg mb-1">Téléphone</p>
+                      <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">+33 6 67 31 95 99</p>
                     </div>
                   </div>
-                  <div className="flex items-start space-x-3">
-                    <Clock className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-semibold">Horaires</p>
-                      <p className="text-sm text-muted-foreground">
+                  <div className="flex items-start space-x-3 sm:space-x-4">
+                    <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm sm:text-base lg:text-lg mb-1">Horaires</p>
+                      <p className="text-xs sm:text-sm lg:text-base text-muted-foreground leading-relaxed">
                         Lundi - Vendredi<br />9h00 - 18h00 CET
                       </p>
                     </div>
