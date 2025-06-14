@@ -1,0 +1,60 @@
+{
+  "name": "vistream",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.10.0",
+    "@radix-ui/react-accordion": "^1.2.11",
+    "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-label": "^2.1.7",
+    "@radix-ui/react-select": "^2.2.5",
+    "@radix-ui/react-separator": "^1.1.7",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-switch": "^1.2.5",
+    "@radix-ui/react-tabs": "^1.1.12",
+    "bcryptjs": "^3.0.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^11.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "juice": "^11.0.1",
+    "lucide-react": "^0.447.0",
+    "mongoose": "^8.15.2",
+    "next": "^15.1.0",
+    "next-seo": "^6.5.0",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^7.0.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.57.0",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.4.5",
+    "zod": "^3.25.64"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^20.0.0",
+    "@types/nodemailer": "^6.4.17",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.17",
+    "dotenv": "^16.5.0",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^15.1.0",
+    "postcss": "^8.4.35",
+    "prettier": "^3.2.5",
+    "prettier-plugin-tailwindcss": "^0.5.11",
+    "tailwindcss": "^3.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
