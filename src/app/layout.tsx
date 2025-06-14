@@ -17,6 +17,11 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
+  icons: {
+    icon: '/logo.svg',
+    apple: '/logo.svg',
+    shortcut: '/logo.svg',
+  },
   metadataBase: new URL('https://vistream.net'),
   alternates: {
     canonical: '/',
