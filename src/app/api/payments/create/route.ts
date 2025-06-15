@@ -9,8 +9,12 @@ const createPaymentSchema = z.object({
   amount: z.number().positive('Le montant doit être positif'),
   currency: z.string().length(3, 'La devise doit faire 3 caractères').default('EUR'),
   description: z.string().min(1, 'La description est requise').max(255, 'Description trop longue'),
-  redirectUrl: z.string().url('URL de redirection invalide'),
+  customerEmail: z.string().email('Email invalide'),
+  customerName: z.string().min(1, 'Le nom du client est requis').max(100, 'Le nom ne peut pas dépasser 100 caractères'),
+  redirectUrl: z.string().url('URL de redirection invalide').optional(),
   webhookUrl: z.string().url('URL de webhook invalide').optional(),
+  gatewayId: z.string().optional(),
+  isTest: z.boolean().optional(),
   metadata: z.record(z.any()).optional(),
   method: z.array(z.string()).optional(),
   locale: z.string().optional(),
@@ -36,14 +40,19 @@ export async function POST(request: NextRequest) {
     // Get Mollie service instance
     const mollieService = await MollieService.fromActiveGateway()
 
+    // Generate redirect URL if not provided
+    const redirectUrl = validatedData.redirectUrl || `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/test-payment/success`
+
     // Prepare payment data
     const paymentData: MolliePaymentData = {
       amount: MollieService.formatAmount(validatedData.amount, validatedData.currency),
       description: validatedData.description,
-      redirectUrl: validatedData.redirectUrl,
+      redirectUrl: redirectUrl,
       metadata: {
         ...validatedData.metadata,
         userId: user.userId,
+        customerEmail: validatedData.customerEmail,
+        customerName: validatedData.customerName,
         createdAt: new Date().toISOString(),
       },
     }

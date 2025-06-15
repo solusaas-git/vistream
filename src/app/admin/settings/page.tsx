@@ -135,8 +135,8 @@ const testPaymentSchema = z.object({
   amount: z.number().min(0.01, "Le montant doit être supérieur à 0").max(1000, "Le montant ne peut pas dépasser 1000€"),
   currency: z.string().min(1, "La devise est requise"),
   description: z.string().min(1, "La description est requise").max(200, "La description ne peut pas dépasser 200 caractères"),
-  customerEmail: z.string().email("Email invalide").optional(),
-  customerName: z.string().max(100, "Le nom ne peut pas dépasser 100 caractères").optional(),
+  customerEmail: z.string().email("Email invalide"),
+  customerName: z.string().min(1, "Le nom du client est requis").max(100, "Le nom ne peut pas dépasser 100 caractères"),
 })
 
 type SmtpFormValues = z.infer<typeof smtpSchema>
@@ -264,8 +264,8 @@ export default function AdminSettingsPage() {
       amount: 10.00,
       currency: 'EUR',
       description: 'Test de paiement',
-      customerEmail: '',
-      customerName: '',
+      customerEmail: 'test@example.com',
+      customerName: 'Client Test',
     },
   })
 
@@ -667,6 +667,7 @@ export default function AdminSettingsPage() {
           description: data.description,
           customerEmail: data.customerEmail,
           customerName: data.customerName,
+          redirectUrl: `${window.location.origin}/test-payment/success`,
           gatewayId: selectedGatewayForTest._id,
           isTest: true,
         }),
@@ -674,9 +675,9 @@ export default function AdminSettingsPage() {
 
       const result = await response.json()
 
-      if (result.success && result.data.checkoutUrl) {
+      if (result.success && result.payment.checkoutUrl) {
         // Open payment URL in new tab
-        window.open(result.data.checkoutUrl, '_blank')
+        window.open(result.payment.checkoutUrl, '_blank')
         setIsTestPaymentModalOpen(false)
         testPaymentForm.reset()
         setSuccessModal({
