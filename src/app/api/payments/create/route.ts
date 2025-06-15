@@ -40,8 +40,9 @@ export async function POST(request: NextRequest) {
     // Get Mollie service instance
     const mollieService = await MollieService.fromActiveGateway()
 
-    // Generate redirect URL if not provided
-    const redirectUrl = validatedData.redirectUrl || `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/test-payment/success`
+    // Generate redirect URL (we'll include payment ID in metadata for now)
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    const redirectUrl = validatedData.redirectUrl || `${baseUrl}/test-payment/success`
 
     // Prepare payment data
     const paymentData: MolliePaymentData = {

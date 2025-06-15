@@ -15,12 +15,47 @@ function PaymentSuccessContent() {
 
   useEffect(() => {
     const checkPaymentStatus = async () => {
+      // Debug: Log all URL parameters
+      const allParams = Array.from(searchParams.entries())
+      console.log('URL parameters:', allParams)
+      console.log('Full URL:', window.location.href)
+      
       // Get payment ID from URL parameters (Mollie redirects with payment ID)
-      const paymentId = searchParams.get('payment_id') || searchParams.get('id')
+      const paymentId = searchParams.get('payment_id') || 
+                       searchParams.get('id') || 
+                       searchParams.get('paymentId') ||
+                       searchParams.get('payment')
+      
+      console.log('Payment ID found:', paymentId)
       
       if (!paymentId) {
-        setError('Aucun ID de paiement trouvé')
-        setPaymentStatus('failed')
+        // If no payment ID in URL, try to get the latest payment for this user
+        try {
+          const response = await fetch('/api/payments/latest')
+          const data = await response.json()
+
+          if (data.success && data.payment) {
+            setPaymentData(data.payment)
+            
+            switch (data.payment.status) {
+              case 'paid':
+                setPaymentStatus('success')
+                break
+              case 'pending':
+              case 'open':
+                setPaymentStatus('pending')
+                break
+              default:
+                setPaymentStatus('failed')
+            }
+          } else {
+            setError(`Aucun paiement récent trouvé. Paramètres URL: ${allParams.map(([k, v]) => `${k}=${v}`).join(', ')}`)
+            setPaymentStatus('failed')
+          }
+        } catch (err) {
+          setError('Erreur lors de la récupération du paiement')
+          setPaymentStatus('failed')
+        }
         return
       }
 
