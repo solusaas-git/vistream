@@ -2161,23 +2161,46 @@ export default function AdminSettingsPage() {
                         )}
                       />
 
-                      <FormField
-                        control={editGatewayForm.control}
-                        name="webhookSecret"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Secret Webhook (optionnel)</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="password" 
-                                placeholder="Secret pour vérifier les webhooks" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                             <FormField
+                         control={editGatewayForm.control}
+                         name="webhookUrl"
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>URL de Webhook (optionnel)</FormLabel>
+                             <FormControl>
+                               <Input 
+                                 placeholder="https://votre-site.com/api/webhooks/mollie" 
+                                 {...field} 
+                               />
+                             </FormControl>
+                             <p className="text-sm text-muted-foreground">
+                               URL pour recevoir les notifications de statut de paiement
+                             </p>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
+
+                       <FormField
+                         control={editGatewayForm.control}
+                         name="webhookSecret"
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Secret Webhook (optionnel)</FormLabel>
+                             <FormControl>
+                               <Input 
+                                 type="password" 
+                                 placeholder="Secret pour vérifier les webhooks" 
+                                 {...field} 
+                               />
+                             </FormControl>
+                             <p className="text-sm text-muted-foreground">
+                               Secret utilisé pour vérifier l'authenticité des webhooks Mollie
+                             </p>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
                     </div>
                   </div>
                 )}
@@ -2215,28 +2238,48 @@ export default function AdminSettingsPage() {
                       />
                     </div>
                     
-                    <FormField
-                      control={editGatewayForm.control}
-                      name="paypalSandbox"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                          <div className="space-y-0.5">
-                            <FormLabel>Mode Sandbox</FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Utiliser l'environnement de test PayPal
-                            </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
+                                         <FormField
+                       control={editGatewayForm.control}
+                       name="paypalSandbox"
+                       render={({ field }) => (
+                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                           <div className="space-y-0.5">
+                             <FormLabel>Mode Sandbox</FormLabel>
+                             <div className="text-sm text-muted-foreground">
+                               Utiliser l'environnement de test PayPal
+                             </div>
+                           </div>
+                           <FormControl>
+                             <Switch
+                               checked={field.value}
+                               onCheckedChange={field.onChange}
+                             />
+                           </FormControl>
+                         </FormItem>
+                       )}
+                     />
+
+                     <FormField
+                       control={editGatewayForm.control}
+                       name="webhookUrl"
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>URL de Webhook (optionnel)</FormLabel>
+                           <FormControl>
+                             <Input 
+                               placeholder="https://votre-site.com/api/webhooks/paypal" 
+                               {...field} 
+                             />
+                           </FormControl>
+                           <p className="text-sm text-muted-foreground">
+                             URL pour recevoir les notifications PayPal
+                           </p>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+                   </div>
+                 )}
 
                 {editGatewayForm.watch('provider') === 'stripe' && (
                   <div className="space-y-4 border-t pt-4">
@@ -2271,28 +2314,48 @@ export default function AdminSettingsPage() {
                       />
                     </div>
                     
-                    <FormField
-                      control={editGatewayForm.control}
-                      name="stripeTestMode"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                          <div className="space-y-0.5">
-                            <FormLabel>Mode Test</FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Utiliser l'environnement de test Stripe
-                            </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
+                                         <FormField
+                       control={editGatewayForm.control}
+                       name="stripeTestMode"
+                       render={({ field }) => (
+                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                           <div className="space-y-0.5">
+                             <FormLabel>Mode Test</FormLabel>
+                             <div className="text-sm text-muted-foreground">
+                               Utiliser l'environnement de test Stripe
+                             </div>
+                           </div>
+                           <FormControl>
+                             <Switch
+                               checked={field.value}
+                               onCheckedChange={field.onChange}
+                             />
+                           </FormControl>
+                         </FormItem>
+                       )}
+                     />
+
+                     <FormField
+                       control={editGatewayForm.control}
+                       name="webhookUrl"
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>URL de Webhook (optionnel)</FormLabel>
+                           <FormControl>
+                             <Input 
+                               placeholder="https://votre-site.com/api/webhooks/stripe" 
+                               {...field} 
+                             />
+                           </FormControl>
+                           <p className="text-sm text-muted-foreground">
+                             URL pour recevoir les notifications Stripe
+                           </p>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+                   </div>
+                 )}
 
                 <div className="flex flex-col sm:flex-row justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsEditGatewayModalOpen(false)}>
