@@ -27,8 +27,8 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Check if user exists and has valid role
-    const user = await User.findById(decoded.userId)
+    // Check if user exists and has valid role (explicitly select password field)
+    const user = await User.findById(decoded.userId).select('+password')
     if (!user || !['admin', 'user', 'customer'].includes(user.role)) {
       return NextResponse.json(
         { success: false, message: 'Accès refusé' },
