@@ -705,8 +705,94 @@ export default function AdminSettingsPage() {
 
   const openEditGatewayDialog = (gateway: PaymentGateway) => {
     setEditingGateway(gateway)
-    // TODO: Populate edit form with gateway data
+    
+    // Populate edit form with gateway data
+    editGatewayForm.reset({
+      name: gateway.name,
+      provider: gateway.provider,
+      displayName: gateway.displayName,
+      description: gateway.description || '',
+      // Mollie fields
+      mollieApiKey: gateway.configuration?.mollieApiKey || '',
+      mollieTestMode: gateway.configuration?.mollieTestMode || false,
+      // PayPal fields
+      paypalClientId: gateway.configuration?.paypalClientId || '',
+      paypalClientSecret: gateway.configuration?.paypalClientSecret || '',
+      paypalSandbox: gateway.configuration?.paypalSandbox || false,
+      // Stripe fields
+      stripePublishableKey: gateway.configuration?.stripePublishableKey || '',
+      stripeSecretKey: gateway.configuration?.stripeSecretKey || '',
+      stripeTestMode: gateway.configuration?.stripeTestMode || false,
+      // Common fields
+      webhookUrl: gateway.configuration?.webhookUrl || '',
+      webhookSecret: gateway.configuration?.webhookSecret || '',
+      // Fee and limit fields
+      fixedFee: gateway.fees?.fixedFee || 0,
+      percentageFee: gateway.fees?.percentageFee || 0,
+      minAmount: gateway.limits?.minAmount || 0.01,
+      maxAmount: gateway.limits?.maxAmount || 10000,
+    })
+    
     setIsEditGatewayModalOpen(true)
+  }
+
+  const handleEditPaymentGateway = async (data: PaymentGatewayFormValues) => {
+    if (!editingGateway) return
+
+    try {
+      const response = await fetch(`/api/admin/settings/payment-gateways/${editingGateway._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: data.name,
+          displayName: data.displayName,
+          description: data.description,
+          configuration: {
+            // Mollie fields
+            mollieApiKey: data.mollieApiKey,
+            mollieTestMode: data.mollieTestMode,
+            // PayPal fields
+            paypalClientId: data.paypalClientId,
+            paypalClientSecret: data.paypalClientSecret,
+            paypalSandbox: data.paypalSandbox,
+            // Stripe fields
+            stripePublishableKey: data.stripePublishableKey,
+            stripeSecretKey: data.stripeSecretKey,
+            stripeTestMode: data.stripeTestMode,
+            // Common fields
+            webhookUrl: data.webhookUrl,
+            webhookSecret: data.webhookSecret,
+          },
+          fees: {
+            fixedFee: data.fixedFee || 0,
+            percentageFee: data.percentageFee || 0,
+            currency: 'EUR'
+          },
+          limits: {
+            minAmount: data.minAmount || 0.01,
+            maxAmount: data.maxAmount || 10000,
+            currency: 'EUR'
+          }
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setIsEditGatewayModalOpen(false)
+        setEditingGateway(null)
+        editGatewayForm.reset()
+        fetchPaymentGateways()
+        setSuccessModal({ open: true, title: 'Succès', message: 'Passerelle de paiement mise à jour avec succès!' })
+      } else {
+        setErrorModal({ open: true, title: 'Erreur', message: result.error || 'Erreur lors de la mise à jour de la passerelle' })
+      }
+    } catch (error) {
+      console.error('Error updating payment gateway:', error)
+      setErrorModal({ open: true, title: 'Erreur', message: 'Erreur lors de la mise à jour de la passerelle' })
+    }
   }
 
   const handleActivateGateway = async (gatewayId: string) => {
@@ -1951,6 +2037,276 @@ export default function AdminSettingsPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Edit Gateway Modal */}
+      <Dialog open={isEditGatewayModalOpen} onOpenChange={setIsEditGatewayModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier la passerelle de paiement</DialogTitle>
+          </DialogHeader>
+          {editingGateway && (
+            <Form {...editGatewayForm}>
+              <form onSubmit={editGatewayForm.handleSubmit(handleEditPaymentGateway)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={editGatewayForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nom de la passerelle</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Mollie Production" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editGatewayForm.control}
+                    name="provider"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fournisseur</FormLabel>
+                        <FormControl>
+                          <select 
+                            {...field} 
+                            disabled
+                            className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="mollie">Mollie</option>
+                            <option value="paypal">PayPal</option>
+                            <option value="stripe">Stripe</option>
+                            <option value="square">Square</option>
+                            <option value="razorpay">Razorpay</option>
+                            <option value="braintree">Braintree</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={editGatewayForm.control}
+                  name="displayName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nom d'affichage</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nom affiché aux utilisateurs" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editGatewayForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description (optionnel)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Description de la passerelle" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Provider-specific configuration */}
+                {editGatewayForm.watch('provider') === 'mollie' && (
+                  <div className="space-y-4 border-t pt-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">Configuration Mollie</h3>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4">
+                      <FormField
+                        control={editGatewayForm.control}
+                        name="mollieApiKey"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Clé API Mollie *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="password" 
+                                placeholder="live_... ou test_..." 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={editGatewayForm.control}
+                        name="mollieTestMode"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                            <div className="space-y-0.5">
+                              <FormLabel>Mode Test</FormLabel>
+                              <div className="text-sm text-muted-foreground">
+                                Utiliser l'environnement de test Mollie
+                              </div>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={editGatewayForm.control}
+                        name="webhookSecret"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Secret Webhook (optionnel)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="password" 
+                                placeholder="Secret pour vérifier les webhooks" 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {editGatewayForm.watch('provider') === 'paypal' && (
+                  <div className="space-y-4 border-t pt-4">
+                    <h3 className="text-lg font-medium">Configuration PayPal</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={editGatewayForm.control}
+                        name="paypalClientId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client ID *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="PayPal Client ID" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={editGatewayForm.control}
+                        name="paypalClientSecret"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client Secret *</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="PayPal Client Secret" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <FormField
+                      control={editGatewayForm.control}
+                      name="paypalSandbox"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>Mode Sandbox</FormLabel>
+                            <div className="text-sm text-muted-foreground">
+                              Utiliser l'environnement de test PayPal
+                            </div>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {editGatewayForm.watch('provider') === 'stripe' && (
+                  <div className="space-y-4 border-t pt-4">
+                    <h3 className="text-lg font-medium">Configuration Stripe</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={editGatewayForm.control}
+                        name="stripePublishableKey"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Clé Publique *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="pk_test_... ou pk_live_..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={editGatewayForm.control}
+                        name="stripeSecretKey"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Clé Secrète *</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="sk_test_... ou sk_live_..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <FormField
+                      control={editGatewayForm.control}
+                      name="stripeTestMode"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>Mode Test</FormLabel>
+                            <div className="text-sm text-muted-foreground">
+                              Utiliser l'environnement de test Stripe
+                            </div>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setIsEditGatewayModalOpen(false)}>
+                    Annuler
+                  </Button>
+                  <Button type="submit">
+                    Mettre à jour
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Test Payment Modal */}
       <Dialog open={isTestPaymentModalOpen} onOpenChange={setIsTestPaymentModalOpen}>
