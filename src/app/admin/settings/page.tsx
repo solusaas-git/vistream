@@ -707,25 +707,26 @@ export default function AdminSettingsPage() {
     setEditingGateway(gateway)
     
     // Populate edit form with gateway data
+    // For security, don't pre-fill password fields - leave them empty
     editGatewayForm.reset({
       name: gateway.name,
       provider: gateway.provider,
       displayName: gateway.displayName,
       description: gateway.description || '',
-      // Mollie fields
-      mollieApiKey: gateway.configuration?.mollieApiKey || '',
+      // Mollie fields - don't pre-fill API key for security
+      mollieApiKey: '',
       mollieTestMode: gateway.configuration?.mollieTestMode || false,
-      // PayPal fields
+      // PayPal fields - don't pre-fill secrets for security
       paypalClientId: gateway.configuration?.paypalClientId || '',
-      paypalClientSecret: gateway.configuration?.paypalClientSecret || '',
+      paypalClientSecret: '',
       paypalSandbox: gateway.configuration?.paypalSandbox || false,
-      // Stripe fields
+      // Stripe fields - don't pre-fill secrets for security
       stripePublishableKey: gateway.configuration?.stripePublishableKey || '',
-      stripeSecretKey: gateway.configuration?.stripeSecretKey || '',
+      stripeSecretKey: '',
       stripeTestMode: gateway.configuration?.stripeTestMode || false,
       // Common fields
       webhookUrl: gateway.configuration?.webhookUrl || '',
-      webhookSecret: gateway.configuration?.webhookSecret || '',
+      webhookSecret: '', // Don't pre-fill for security
       // Fee and limit fields
       fixedFee: gateway.fees?.fixedFee || 0,
       percentageFee: gateway.fees?.percentageFee || 0,
@@ -740,6 +741,47 @@ export default function AdminSettingsPage() {
     if (!editingGateway) return
 
     try {
+      // Build configuration object, only including fields that have values
+      const configuration: any = {}
+      
+      // Mollie fields - only include if they have values
+      if (data.mollieApiKey && data.mollieApiKey.trim() !== '') {
+        configuration.mollieApiKey = data.mollieApiKey
+      }
+      if (data.mollieTestMode !== undefined) {
+        configuration.mollieTestMode = data.mollieTestMode
+      }
+      
+      // PayPal fields - only include if they have values
+      if (data.paypalClientId && data.paypalClientId.trim() !== '') {
+        configuration.paypalClientId = data.paypalClientId
+      }
+      if (data.paypalClientSecret && data.paypalClientSecret.trim() !== '') {
+        configuration.paypalClientSecret = data.paypalClientSecret
+      }
+      if (data.paypalSandbox !== undefined) {
+        configuration.paypalSandbox = data.paypalSandbox
+      }
+      
+      // Stripe fields - only include if they have values
+      if (data.stripePublishableKey && data.stripePublishableKey.trim() !== '') {
+        configuration.stripePublishableKey = data.stripePublishableKey
+      }
+      if (data.stripeSecretKey && data.stripeSecretKey.trim() !== '') {
+        configuration.stripeSecretKey = data.stripeSecretKey
+      }
+      if (data.stripeTestMode !== undefined) {
+        configuration.stripeTestMode = data.stripeTestMode
+      }
+      
+      // Common fields - only include if they have values
+      if (data.webhookUrl && data.webhookUrl.trim() !== '') {
+        configuration.webhookUrl = data.webhookUrl
+      }
+      if (data.webhookSecret && data.webhookSecret.trim() !== '') {
+        configuration.webhookSecret = data.webhookSecret
+      }
+
       const response = await fetch(`/api/admin/settings/payment-gateways/${editingGateway._id}`, {
         method: 'PUT',
         headers: {
@@ -749,22 +791,7 @@ export default function AdminSettingsPage() {
           name: data.name,
           displayName: data.displayName,
           description: data.description,
-          configuration: {
-            // Mollie fields
-            mollieApiKey: data.mollieApiKey,
-            mollieTestMode: data.mollieTestMode,
-            // PayPal fields
-            paypalClientId: data.paypalClientId,
-            paypalClientSecret: data.paypalClientSecret,
-            paypalSandbox: data.paypalSandbox,
-            // Stripe fields
-            stripePublishableKey: data.stripePublishableKey,
-            stripeSecretKey: data.stripeSecretKey,
-            stripeTestMode: data.stripeTestMode,
-            // Common fields
-            webhookUrl: data.webhookUrl,
-            webhookSecret: data.webhookSecret,
-          },
+          configuration,
           fees: {
             fixedFee: data.fixedFee || 0,
             percentageFee: data.percentageFee || 0,
@@ -2122,23 +2149,26 @@ export default function AdminSettingsPage() {
                       <h3 className="text-lg font-medium">Configuration Mollie</h3>
                     </div>
                     <div className="grid grid-cols-1 gap-4">
-                      <FormField
-                        control={editGatewayForm.control}
-                        name="mollieApiKey"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Clé API Mollie *</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="password" 
-                                placeholder="live_... ou test_..." 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                             <FormField
+                         control={editGatewayForm.control}
+                         name="mollieApiKey"
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Clé API Mollie *</FormLabel>
+                             <FormControl>
+                               <Input 
+                                 type="password" 
+                                 placeholder={editingGateway?.configuration?.mollieApiKey ? "••••••••••••••••••••••••••••••••" : "live_... ou test_..."} 
+                                 {...field} 
+                               />
+                             </FormControl>
+                             <p className="text-sm text-muted-foreground">
+                               {editingGateway?.configuration?.mollieApiKey ? "Laissez vide pour conserver la clé actuelle" : "Entrez votre clé API Mollie"}
+                             </p>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
                       
                       <FormField
                         control={editGatewayForm.control}
@@ -2190,12 +2220,12 @@ export default function AdminSettingsPage() {
                              <FormControl>
                                <Input 
                                  type="password" 
-                                 placeholder="Secret pour vérifier les webhooks" 
+                                 placeholder={editingGateway?.configuration?.webhookSecret ? "••••••••••••••••••••••••••••••••" : "Secret pour vérifier les webhooks"} 
                                  {...field} 
                                />
                              </FormControl>
                              <p className="text-sm text-muted-foreground">
-                               Secret utilisé pour vérifier l'authenticité des webhooks Mollie
+                               {editingGateway?.configuration?.webhookSecret ? "Laissez vide pour conserver le secret actuel" : "Secret utilisé pour vérifier l'authenticité des webhooks Mollie"}
                              </p>
                              <FormMessage />
                            </FormItem>
@@ -2223,19 +2253,26 @@ export default function AdminSettingsPage() {
                         )}
                       />
                       
-                      <FormField
-                        control={editGatewayForm.control}
-                        name="paypalClientSecret"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Client Secret *</FormLabel>
-                            <FormControl>
-                              <Input type="password" placeholder="PayPal Client Secret" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                             <FormField
+                         control={editGatewayForm.control}
+                         name="paypalClientSecret"
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Client Secret *</FormLabel>
+                             <FormControl>
+                               <Input 
+                                 type="password" 
+                                 placeholder={editingGateway?.configuration?.paypalClientSecret ? "••••••••••••••••••••••••••••••••" : "PayPal Client Secret"} 
+                                 {...field} 
+                               />
+                             </FormControl>
+                             <p className="text-sm text-muted-foreground">
+                               {editingGateway?.configuration?.paypalClientSecret ? "Laissez vide pour conserver le secret actuel" : "Entrez votre PayPal Client Secret"}
+                             </p>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
                     </div>
                     
                                          <FormField
@@ -2299,19 +2336,26 @@ export default function AdminSettingsPage() {
                         )}
                       />
                       
-                      <FormField
-                        control={editGatewayForm.control}
-                        name="stripeSecretKey"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Clé Secrète *</FormLabel>
-                            <FormControl>
-                              <Input type="password" placeholder="sk_test_... ou sk_live_..." {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                             <FormField
+                         control={editGatewayForm.control}
+                         name="stripeSecretKey"
+                         render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Clé Secrète *</FormLabel>
+                             <FormControl>
+                               <Input 
+                                 type="password" 
+                                 placeholder={editingGateway?.configuration?.stripeSecretKey ? "••••••••••••••••••••••••••••••••" : "sk_test_... ou sk_live_..."} 
+                                 {...field} 
+                               />
+                             </FormControl>
+                             <p className="text-sm text-muted-foreground">
+                               {editingGateway?.configuration?.stripeSecretKey ? "Laissez vide pour conserver la clé actuelle" : "Entrez votre clé secrète Stripe"}
+                             </p>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
                     </div>
                     
                                          <FormField
