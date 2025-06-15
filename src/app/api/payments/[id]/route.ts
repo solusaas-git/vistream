@@ -4,7 +4,7 @@ import { MollieService } from '@/lib/mollie'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -16,7 +16,9 @@ export async function GET(
       )
     }
 
-    const paymentId = params.id
+    // Await params in Next.js 15
+    const { id } = await params
+    const paymentId = id
 
     if (!paymentId) {
       return NextResponse.json(
