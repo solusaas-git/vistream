@@ -20,9 +20,15 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!webhookData.id) {
-      console.error('Missing payment ID in Mollie webhook')
-      return NextResponse.json({ error: 'Missing payment ID' }, { status: 400 })
+      console.error('Missing ID in Mollie webhook')
+      return NextResponse.json({ error: 'Missing ID' }, { status: 400 })
     }
+
+    console.log('Mollie webhook received:', {
+      id: webhookData.id,
+      type: webhookData.id.startsWith('event_') ? 'event' : 'payment',
+      body: webhookData
+    })
 
     await connectToDatabase()
 
@@ -51,13 +57,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch payment details from Mollie API
     const mollieApiKey = mollieGateway.configuration?.mollieApiKey
     if (!mollieApiKey) {
       console.error('No Mollie API key configured')
       return NextResponse.json({ error: 'No API key configured' }, { status: 500 })
     }
 
+    // Handle different types of webhooks
+    if (webhookData.id.startsWith('event_')) {
+      // This is a test event from Mollie dashboard
+      console.log('Received Mollie test event:', webhookData.id)
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Test event received successfully',
+        eventId: webhookData.id,
+        type: 'test_event'
+      })
+    }
+
+    // Handle payment webhooks (tr_)
+    if (!webhookData.id.startsWith('tr_')) {
+      console.error('Invalid payment ID format:', webhookData.id)
+      return NextResponse.json({ error: 'Invalid payment ID format' }, { status: 400 })
+    }
+
+    // Fetch payment details from Mollie API
     const mollieResponse = await fetch(`https://api.mollie.com/v2/payments/${webhookData.id}`, {
       headers: {
         'Authorization': `Bearer ${mollieApiKey}`,
@@ -66,7 +91,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (!mollieResponse.ok) {
-      console.error('Failed to fetch payment from Mollie:', await mollieResponse.text())
+      const errorText = await mollieResponse.text()
+      console.error('Failed to fetch payment from Mollie:', errorText)
       return NextResponse.json({ error: 'Failed to fetch payment' }, { status: 500 })
     }
 
