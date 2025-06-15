@@ -8,7 +8,10 @@ const nextConfig = {
     '192.168.11.101',
     'localhost',
     '127.0.0.1',
-    '0.0.0.0'
+    '0.0.0.0',
+    // Add ngrok domains for webhook testing
+    /.*\.ngrok\.io$/,
+    /.*\.ngrok-free\.app$/
   ],
   images: {
     formats: ['image/webp', 'image/avif'],
