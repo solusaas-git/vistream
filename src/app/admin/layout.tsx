@@ -21,7 +21,8 @@ import {
   User,
   Target,
   Mail,
-  ChevronRight
+  ChevronRight,
+  Receipt
 } from 'lucide-react'
 
 interface User {
@@ -157,7 +158,33 @@ export default function AdminLayout({
       ]
     }
     
-    // Admin and user navigation
+    if (user?.role === 'user') {
+      // Navigation for users - dashboard, customers (their customers), subscriptions (their affiliations), and profile
+      return [
+        {
+          name: 'Tableau de bord',
+          href: '/admin' as const,
+          icon: BarChart3,
+        },
+        {
+          name: 'Mes clients',
+          href: '/admin/customers' as const,
+          icon: Users,
+        },
+        {
+          name: 'Abonnements',
+          href: '/admin/subscriptions' as const,
+          icon: CreditCard,
+        },
+        {
+          name: 'Mon profil',
+          href: '/admin/profile' as const,
+          icon: User,
+        },
+      ]
+    }
+    
+    // Full admin navigation - only for admin role
     return [
       {
         name: 'Tableau de bord',
@@ -173,6 +200,11 @@ export default function AdminLayout({
         name: 'Abonnements',
         href: '/admin/subscriptions' as const,
         icon: CreditCard,
+      },
+      {
+        name: 'Paiements',
+        href: '/admin/payments' as const,
+        icon: Receipt,
       },
       {
         name: 'Plans',
@@ -223,13 +255,13 @@ export default function AdminLayout({
         <div className="flex items-center justify-between h-14 sm:h-16 px-4 sm:px-6 border-b border-gray-700/50">
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
             <div className="p-1 sm:p-1.5 bg-primary rounded-lg">
-              <Image
-                src="/logo.svg"
-                alt="Vistream Logo"
+            <Image
+              src="/logo.svg"
+              alt="Vistream Logo"
                 width={24}
                 height={24}
                 className="w-5 h-5 sm:w-6 sm:h-6 brightness-0 invert"
-              />
+            />
             </div>
             <div className="min-w-0">
               <span className="text-lg sm:text-xl font-bold text-white truncate block">Vistream</span>
@@ -257,9 +289,9 @@ export default function AdminLayout({
             {navigation.map((item) => {
               const isActive = pathname === item.href
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
+              <Link
+                key={item.name}
+                href={item.href}
                   className={`
                     group flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg
                     font-medium text-sm sm:text-base transition-all duration-200
@@ -268,8 +300,8 @@ export default function AdminLayout({
                       : 'text-gray-300 hover:bg-gray-800/70 hover:text-white'
                     }
                   `}
-                  onClick={() => setSidebarOpen(false)}
-                >
+                onClick={() => setSidebarOpen(false)}
+              >
                   <div className="flex items-center space-x-3 min-w-0">
                     <item.icon className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${isActive ? 'text-white' : ''}`} />
                     <span className="truncate">{item.name}</span>
@@ -277,7 +309,7 @@ export default function AdminLayout({
                   {isActive && (
                     <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                   )}
-                </Link>
+              </Link>
               )
             })}
           </nav>
@@ -378,7 +410,7 @@ export default function AdminLayout({
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
-      </div>
+        </div>
 
       {/* Main Content Area */}
       <div className="lg:pl-80">

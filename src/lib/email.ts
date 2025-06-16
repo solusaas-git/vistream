@@ -4,7 +4,9 @@ import SmtpSettings from '@/models/SmtpSettings'
 import { 
   generateWelcomeEmail, 
   generatePasswordResetEmail, 
-  generateOTPEmail 
+  generateOTPEmail,
+  generateContactConfirmationEmail,
+  generateAdminReplyEmail
 } from './email-templates'
 
 interface EmailOptions {
@@ -147,6 +149,78 @@ export async function sendPasswordResetEmail(email: string, resetToken: string, 
     })
   } catch (error) {
     console.error('Error generating password reset email:', error)
+    return false
+  }
+}
+
+// Send contact confirmation email
+export async function sendContactConfirmationEmail(
+  email: string, 
+  name: string, 
+  subject: string, 
+  message: string, 
+  messageId: string
+): Promise<boolean> {
+  try {
+    const emailTemplate = generateContactConfirmationEmail({
+      name,
+      email,
+      subject,
+      message,
+      messageId,
+      date: new Date().toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    })
+
+    return await sendEmail({ 
+      to: email, 
+      subject: emailTemplate.subject, 
+      html: emailTemplate.html 
+    })
+  } catch (error) {
+    console.error('Error generating contact confirmation email:', error)
+    return false
+  }
+}
+
+// Send admin reply email
+export async function sendAdminReplyEmail(
+  email: string,
+  contactName: string,
+  originalSubject: string,
+  replyMessage: string,
+  originalMessage: string,
+  messageId: string
+): Promise<boolean> {
+  try {
+    const emailTemplate = generateAdminReplyEmail({
+      contactName,
+      originalSubject,
+      replyMessage,
+      originalMessage,
+      messageId,
+      replyDate: new Date().toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    })
+
+    return await sendEmail({ 
+      to: email, 
+      subject: emailTemplate.subject, 
+      html: emailTemplate.html 
+    })
+  } catch (error) {
+    console.error('Error generating admin reply email:', error)
     return false
   }
 } 

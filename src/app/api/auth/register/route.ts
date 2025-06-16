@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
           planName: validatedData.selectedPlan.planName,
           planPrice: validatedData.selectedPlan.planPrice,
           planPeriod: validatedData.selectedPlan.planPeriod,
-          status: 'active',
+          status: 'pending', // Pending until payment is completed
           startDate: new Date(),
           autoRenew: true,
           // Affiliation tracking
@@ -148,28 +148,28 @@ export async function POST(request: NextRequest) {
       maxAge: 24 * 60 * 60, // 1 day
     })
     
-    // Send welcome email (don't fail registration if email fails)
-    try {
-      const subscriptionData = subscription ? {
-        planName: subscription.planName,
-        planPrice: subscription.planPrice,
-        planPeriod: subscription.planPeriod,
-        startDate: subscription.startDate.toLocaleDateString('fr-FR'),
-        endDate: subscription.endDate ? subscription.endDate.toLocaleDateString('fr-FR') : undefined
-      } : undefined
+    // Send welcome email asynchronously (don't block the response)
+    const subscriptionData = subscription ? {
+      planName: subscription.planName,
+      planPrice: subscription.planPrice,
+      planPeriod: subscription.planPeriod,
+      startDate: subscription.startDate.toLocaleDateString('fr-FR'),
+      endDate: subscription.endDate ? subscription.endDate.toLocaleDateString('fr-FR') : undefined
+    } : undefined
 
-      await sendWelcomeEmail(
-        validatedData.email, 
-        validatedData.firstName, 
-        validatedData.lastName,
-        subscriptionData
-      )
+    // Send email in background without blocking the response
+    sendWelcomeEmail(
+      validatedData.email, 
+      validatedData.firstName, 
+      validatedData.lastName,
+      subscriptionData
+    ).then(() => {
       console.log('Welcome email sent to:', validatedData.email)
-    } catch (emailError) {
+    }).catch((emailError) => {
       console.error('Failed to send welcome email:', emailError)
-      // Continue with registration even if email fails
-    }
+    })
     
+    console.log('Returning registration response')
     return response
     
   } catch (error) {

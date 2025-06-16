@@ -5,7 +5,6 @@ import Contact from '@/models/Contact'
 import User from '@/models/User'
 import { withAdmin } from '@/lib/rbac'
 import { rateLimit, rateLimitConfigs, createRateLimitResponse } from '@/lib/rate-limit'
-import mongoose from 'mongoose'
 
 // Validation schema for updating contact
 const updateContactSchema = z.object({
@@ -14,18 +13,15 @@ const updateContactSchema = z.object({
   assignedTo: z.string().optional(),
   tags: z.array(z.string()).optional(),
   note: z.object({
-    content: z.string().min(1).max(1000),
+    content: z.string().max(1000),
   }).optional(),
 })
 
-interface RouteParams {
-  params: Promise<{
-    id: string
-  }>
-}
-
 // GET /api/admin/contacts/[id] - Get contact details
-export const GET = withAdmin(async (request: NextRequest, user, { params }: RouteParams) => {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  
+  return withAdmin(async (request: NextRequest, user) => {
   try {
     // Apply rate limiting (bypassed for admin users)
     const rateLimitResult = rateLimit(request, rateLimitConfigs.default, user)
@@ -37,8 +33,6 @@ export const GET = withAdmin(async (request: NextRequest, user, { params }: Rout
     }
 
     await connectToDatabase()
-
-    const { id } = await params
     
     // Get contact with populated fields
     const contact = await Contact.findById(id)
@@ -48,7 +42,7 @@ export const GET = withAdmin(async (request: NextRequest, user, { params }: Rout
 
     if (!contact) {
       return NextResponse.json(
-        { error: 'Message de contact non trouvé.' },
+          { success: false, error: 'Message de contact non trouvé.' },
         { status: 404 }
       )
     }
@@ -78,14 +72,18 @@ export const GET = withAdmin(async (request: NextRequest, user, { params }: Rout
   } catch (error) {
     console.error('Error fetching contact:', error)
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération du message.' },
+        { success: false, error: 'Erreur lors de la récupération du message.' },
       { status: 500 }
     )
   }
-})
+  })(request)
+}
 
 // PUT /api/admin/contacts/[id] - Update contact
-export const PUT = withAdmin(async (request: NextRequest, user, { params }: RouteParams) => {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  
+  return withAdmin(async (request: NextRequest, user) => {
   try {
     // Apply rate limiting (bypassed for admin users)
     const rateLimitResult = rateLimit(request, rateLimitConfigs.default, user)
@@ -97,19 +95,19 @@ export const PUT = withAdmin(async (request: NextRequest, user, { params }: Rout
     }
 
     const body = await request.json()
+      console.log('Update contact request body:', body)
     
     // Validate input
     const validatedData = updateContactSchema.parse(body)
+      console.log('Validated data:', validatedData)
     
     await connectToDatabase()
-    
-    const { id } = await params
     
     // Check if contact exists
     const contact = await Contact.findById(id)
     if (!contact) {
       return NextResponse.json(
-        { error: 'Message de contact non trouvé.' },
+          { success: false, error: 'Message de contact non trouvé.' },
         { status: 404 }
       )
     }
@@ -130,7 +128,7 @@ export const PUT = withAdmin(async (request: NextRequest, user, { params }: Rout
       const assignedUser = await User.findById(validatedData.assignedTo)
       if (!assignedUser || assignedUser.role !== 'admin') {
         return NextResponse.json(
-          { error: 'Utilisateur assigné invalide.' },
+            { success: false, error: 'Utilisateur assigné invalide.' },
           { status: 400 }
         )
       }
@@ -140,6 +138,8 @@ export const PUT = withAdmin(async (request: NextRequest, user, { params }: Rout
     if (validatedData.tags) {
       updateData.tags = validatedData.tags
     }
+      
+      console.log('Update data before note:', updateData)
     
     // Add note if provided
     if (validatedData.note) {
@@ -150,6 +150,7 @@ export const PUT = withAdmin(async (request: NextRequest, user, { params }: Rout
           createdAt: new Date()
         }
       }
+        console.log('Added note to update data:', updateData)
     }
     
     // Update contact
@@ -160,6 +161,8 @@ export const PUT = withAdmin(async (request: NextRequest, user, { params }: Rout
     )
     .populate('assignedTo', 'firstName lastName email')
     .populate('notes.author', 'firstName lastName email')
+      
+      console.log('Updated contact:', updatedContact)
     
     return NextResponse.json({
       success: true,
@@ -173,6 +176,7 @@ export const PUT = withAdmin(async (request: NextRequest, user, { params }: Rout
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { 
+            success: false,
           error: 'Données invalides.', 
           details: error.errors.map(err => ({
             field: err.path.join('.'),
@@ -184,14 +188,18 @@ export const PUT = withAdmin(async (request: NextRequest, user, { params }: Rout
     }
     
     return NextResponse.json(
-      { error: 'Erreur lors de la mise à jour du message.' },
+        { success: false, error: 'Erreur lors de la mise à jour du message.' },
       { status: 500 }
     )
   }
-})
+  })(request)
+}
 
 // DELETE /api/admin/contacts/[id] - Delete contact
-export const DELETE = withAdmin(async (request: NextRequest, user, { params }: RouteParams) => {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  
+  return withAdmin(async (request: NextRequest, user) => {
   try {
     // Apply rate limiting (bypassed for admin users)
     const rateLimitResult = rateLimit(request, rateLimitConfigs.default, user)
@@ -203,14 +211,12 @@ export const DELETE = withAdmin(async (request: NextRequest, user, { params }: R
     }
 
     await connectToDatabase()
-
-    const { id } = await params
     
     // Check if contact exists
     const contact = await Contact.findById(id)
     if (!contact) {
       return NextResponse.json(
-        { error: 'Message de contact non trouvé.' },
+          { success: false, error: 'Message de contact non trouvé.' },
         { status: 404 }
       )
     }
@@ -226,8 +232,9 @@ export const DELETE = withAdmin(async (request: NextRequest, user, { params }: R
   } catch (error) {
     console.error('Error deleting contact:', error)
     return NextResponse.json(
-      { error: 'Erreur lors de la suppression du message.' },
+        { success: false, error: 'Erreur lors de la suppression du message.' },
       { status: 500 }
     )
   }
-}) 
+  })(request)
+} 

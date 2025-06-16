@@ -1,31 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/mongoose'
-import { verifyToken } from '@/lib/auth'
+import { withAdmin } from '@/lib/rbac'
 import Plan from '@/models/Plan'
 
 // GET /api/admin/plans - Fetch all plans
-export async function GET(request: NextRequest) {
+export const GET = withAdmin(async (request: NextRequest, user) => {
   try {
     await connectDB()
-
-    // Get token from cookies
-    const token = request.cookies.get('auth-token')?.value
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token manquant' },
-        { status: 401 }
-      )
-    }
-
-    // Verify token
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Token invalide' },
-        { status: 401 }
-      )
-    }
 
     // Fetch plans from database
     const plans = await Plan.find({}).sort({ order: 1 })
@@ -86,31 +67,12 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+})
 
 // POST /api/admin/plans - Create new plan
-export async function POST(request: NextRequest) {
+export const POST = withAdmin(async (request: NextRequest, user) => {
   try {
     await connectDB()
-
-    // Get token from cookies
-    const token = request.cookies.get('auth-token')?.value
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token manquant' },
-        { status: 401 }
-      )
-    }
-
-    // Verify token
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Token invalide' },
-        { status: 401 }
-      )
-    }
 
     // Get plan data from request body
     const planData = await request.json()
@@ -140,4 +102,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}) 

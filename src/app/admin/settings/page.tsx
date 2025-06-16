@@ -36,7 +36,8 @@ import {
   Shield,
   Globe,
   TestTube,
-  Zap
+  Zap,
+  Hash
 } from 'lucide-react'
 
 interface SmtpSettings {
@@ -63,6 +64,8 @@ interface PaymentGateway {
   description: string
   isActive: boolean
   isDefault: boolean
+  priority: number
+  isRecommended: boolean
   configuration: {
     mollieApiKey?: string
     mollieTestMode?: boolean
@@ -71,6 +74,7 @@ interface PaymentGateway {
     paypalSandbox?: boolean
     stripePublishableKey?: string
     stripeSecretKey?: string
+    stripeWebhookSecret?: string
     stripeTestMode?: boolean
     webhookUrl?: string
     webhookSecret?: string
@@ -115,6 +119,8 @@ const paymentGatewaySchema = z.object({
   provider: z.enum(['mollie', 'paypal', 'stripe', 'square', 'razorpay', 'braintree']),
   displayName: z.string().min(1, "Le nom d'affichage est requis").max(100, "Le nom d'affichage ne peut pas dépasser 100 caractères"),
   description: z.string().max(500, "La description ne peut pas dépasser 500 caractères").optional(),
+  priority: z.number().min(0, "La priorité doit être positive").max(100, "La priorité ne peut pas dépasser 100").optional(),
+  isRecommended: z.boolean().optional(),
   mollieApiKey: z.string().optional(),
   mollieTestMode: z.boolean().optional(),
   paypalClientId: z.string().optional(),
@@ -122,6 +128,7 @@ const paymentGatewaySchema = z.object({
   paypalSandbox: z.boolean().optional(),
   stripePublishableKey: z.string().optional(),
   stripeSecretKey: z.string().optional(),
+  stripeWebhookSecret: z.string().optional(),
   stripeTestMode: z.boolean().optional(),
   webhookUrl: z.string().url("URL de webhook invalide").optional().or(z.literal("")),
   webhookSecret: z.string().optional(),
@@ -207,6 +214,8 @@ export default function AdminSettingsPage() {
       provider: 'mollie',
       displayName: 'Paiement par carte',
       description: 'Paiements sécurisés via Mollie - Cartes, iDEAL, PayPal et plus',
+      priority: 50,
+      isRecommended: false,
       // Mollie fields
       mollieApiKey: '',
       mollieTestMode: true,
@@ -217,6 +226,7 @@ export default function AdminSettingsPage() {
       // Stripe fields
       stripePublishableKey: '',
       stripeSecretKey: '',
+      stripeWebhookSecret: '',
       stripeTestMode: true,
       // Common fields
       webhookUrl: '',
@@ -236,20 +246,23 @@ export default function AdminSettingsPage() {
       provider: 'mollie',
       displayName: '',
       description: '',
-      // Mollie fields
+      priority: 0,
+      isRecommended: false,
+      // Mollie fields - don't pre-fill API key for security
       mollieApiKey: '',
-      mollieTestMode: true,
-      // PayPal fields
+      mollieTestMode: false,
+      // PayPal fields - don't pre-fill secrets for security
       paypalClientId: '',
       paypalClientSecret: '',
-      paypalSandbox: true,
-      // Stripe fields
+      paypalSandbox: false,
+      // Stripe fields - don't pre-fill secrets for security
       stripePublishableKey: '',
       stripeSecretKey: '',
-      stripeTestMode: true,
+      stripeWebhookSecret: '',
+      stripeTestMode: false,
       // Common fields
       webhookUrl: '',
-      webhookSecret: '',
+      webhookSecret: '', // Don't pre-fill for security
       // Fee and limit fields
       fixedFee: 0,
       percentageFee: 0,
@@ -347,7 +360,16 @@ export default function AdminSettingsPage() {
       const data = await response.json()
 
       if (data.success) {
-        setPaymentGateways(data.data)
+        // Sort by priority (highest first), then by creation date
+        const sortedGateways = data.data.sort((a: PaymentGateway, b: PaymentGateway) => {
+          const priorityA = a.priority || 0
+          const priorityB = b.priority || 0
+          if (priorityA !== priorityB) {
+            return priorityB - priorityA // Higher priority first
+          }
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() // Older first if same priority
+        })
+        setPaymentGateways(sortedGateways)
       } else {
         console.error('Error fetching payment gateways:', data.error)
       }
@@ -590,9 +612,10 @@ export default function AdminSettingsPage() {
           configuration.paypalSandbox = data.paypalSandbox ?? true
           break
         case 'stripe':
-          configuration.stripePublishableKey = data.stripePublishableKey
-          configuration.stripeSecretKey = data.stripeSecretKey
-          configuration.stripeTestMode = data.stripeTestMode ?? true
+                configuration.stripePublishableKey = data.stripePublishableKey
+      configuration.stripeSecretKey = data.stripeSecretKey
+      configuration.stripeWebhookSecret = data.stripeWebhookSecret
+      configuration.stripeTestMode = data.stripeTestMode ?? true
           break
       }
       
@@ -608,6 +631,8 @@ export default function AdminSettingsPage() {
         provider: data.provider,
         displayName: data.displayName,
         description: data.description,
+        priority: data.priority || 0,
+        isRecommended: data.isRecommended || false,
         configuration,
         fees: {
           fixedFee: data.fixedFee || 0,
@@ -667,7 +692,8 @@ export default function AdminSettingsPage() {
           description: data.description,
           customerEmail: data.customerEmail,
           customerName: data.customerName,
-          redirectUrl: `${window.location.origin}/test-payment/success`,
+          provider: selectedGatewayForTest.provider,
+          redirectUrl: `${window.location.origin}/admin/settings`,
           gatewayId: selectedGatewayForTest._id,
           isTest: true,
         }),
@@ -714,6 +740,8 @@ export default function AdminSettingsPage() {
       provider: gateway.provider,
       displayName: gateway.displayName,
       description: gateway.description || '',
+      priority: gateway.priority || 0,
+      isRecommended: gateway.isRecommended || false,
       // Mollie fields - don't pre-fill API key for security
       mollieApiKey: '',
       mollieTestMode: gateway.configuration?.mollieTestMode || false,
@@ -724,6 +752,7 @@ export default function AdminSettingsPage() {
       // Stripe fields - don't pre-fill secrets for security
       stripePublishableKey: gateway.configuration?.stripePublishableKey || '',
       stripeSecretKey: '',
+      stripeWebhookSecret: '',
       stripeTestMode: gateway.configuration?.stripeTestMode || false,
       // Common fields
       webhookUrl: gateway.configuration?.webhookUrl || '',
@@ -771,6 +800,9 @@ export default function AdminSettingsPage() {
       if (data.stripeSecretKey && data.stripeSecretKey.trim() !== '') {
         configuration.stripeSecretKey = data.stripeSecretKey
       }
+      if (data.stripeWebhookSecret && data.stripeWebhookSecret.trim() !== '') {
+        configuration.stripeWebhookSecret = data.stripeWebhookSecret
+      }
       if (data.stripeTestMode !== undefined) {
         configuration.stripeTestMode = data.stripeTestMode
       }
@@ -792,6 +824,8 @@ export default function AdminSettingsPage() {
           name: data.name,
           displayName: data.displayName,
           description: data.description,
+          priority: data.priority || 0,
+          isRecommended: data.isRecommended || false,
           configuration,
           fees: {
             fixedFee: data.fixedFee || 0,
@@ -824,19 +858,7 @@ export default function AdminSettingsPage() {
   }
 
   const handleActivateGateway = async (gatewayId: string) => {
-    const gatewayToActivate = paymentGateways.find(g => g._id === gatewayId)
-    const currentActive = paymentGateways.find(g => g.isActive)
-    
-    if (currentActive && currentActive._id !== gatewayId) {
-      setConfirmModal({
-        open: true,
-        title: 'Confirmer l\'activation',
-        message: `Activer "${gatewayToActivate?.displayName}" désactivera automatiquement "${currentActive.displayName}". Continuer ?`,
-        onConfirm: () => activateGateway(gatewayId)
-      })
-    } else {
-      activateGateway(gatewayId)
-    }
+    activateGateway(gatewayId)
   }
 
   const activateGateway = async (gatewayId: string) => {
@@ -1104,6 +1126,51 @@ export default function AdminSettingsPage() {
                           )}
                         />
 
+                        <FormField
+                          control={gatewayForm.control}
+                          name="priority"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Priorité d'affichage</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  placeholder="50" 
+                                  min="0" 
+                                  max="100"
+                                  {...field}
+                                  onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                />
+                              </FormControl>
+                              <p className="text-sm text-muted-foreground">
+                                Plus la valeur est élevée, plus la passerelle apparaîtra en premier (0-100)
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={gatewayForm.control}
+                          name="isRecommended"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                              <div className="space-y-0.5">
+                                <FormLabel>Passerelle recommandée</FormLabel>
+                                <div className="text-sm text-muted-foreground">
+                                  Marquer cette passerelle comme recommandée aux utilisateurs
+                                </div>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
                         {/* Provider-specific configuration */}
                         {gatewayForm.watch('provider') === 'mollie' && (
                           <div className="space-y-4 border-t pt-4">
@@ -1303,6 +1370,43 @@ export default function AdminSettingsPage() {
                                 )}
                               />
                             </div>
+
+                            <FormField
+                              control={gatewayForm.control}
+                              name="stripeWebhookSecret"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Secret de Webhook (optionnel)</FormLabel>
+                                  <FormControl>
+                                    <Input type="password" placeholder="whsec_..." {...field} />
+                                  </FormControl>
+                                  <p className="text-sm text-muted-foreground">
+                                    Secret pour vérifier les webhooks Stripe
+                                  </p>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={gatewayForm.control}
+                              name="webhookUrl"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>URL de Webhook (optionnel)</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      placeholder="https://votre-site.com/api/webhooks/stripe" 
+                                      {...field} 
+                                    />
+                                  </FormControl>
+                                  <p className="text-sm text-muted-foreground">
+                                    URL pour recevoir les notifications Stripe
+                                  </p>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
                             
                             <FormField
                               control={gatewayForm.control}
@@ -1357,9 +1461,14 @@ export default function AdminSettingsPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    {paymentGateways.length} passerelle{paymentGateways.length > 1 ? 's' : ''} configurée{paymentGateways.length > 1 ? 's' : ''}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      {paymentGateways.length} passerelle{paymentGateways.length > 1 ? 's' : ''} configurée{paymentGateways.length > 1 ? 's' : ''} • {paymentGateways.filter(g => g.isActive).length} active{paymentGateways.filter(g => g.isActive).length > 1 ? 's' : ''}
+                    </p>
+                    <div className="text-xs text-muted-foreground">
+                      Vous pouvez activer plusieurs passerelles simultanément
+                    </div>
+                  </div>
                   <div className="grid gap-4">
                     {paymentGateways.map((gateway) => (
                       <div key={gateway._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -1372,6 +1481,11 @@ export default function AdminSettingsPage() {
                                 <Badge variant="outline" className="text-xs">
                                   {gateway.provider.toUpperCase()}
                                 </Badge>
+                                {gateway.isRecommended && (
+                                  <Badge variant="default" className="text-xs bg-green-100 text-green-700">
+                                    Recommandé
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-sm text-muted-foreground mt-1">{gateway.name}</p>
                               {gateway.description && (
@@ -1380,6 +1494,10 @@ export default function AdminSettingsPage() {
                               
                               {/* Configuration info */}
                               <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Hash className="h-3 w-3" />
+                                  Priorité: {gateway.priority || 0}
+                                </span>
                                 {gateway.provider === 'mollie' && gateway.configuration?.mollieTestMode && (
                                   <span className="flex items-center gap-1">
                                     <Shield className="h-3 w-3" />
@@ -2143,6 +2261,51 @@ export default function AdminSettingsPage() {
                   )}
                 />
 
+                <FormField
+                  control={editGatewayForm.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priorité d'affichage</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="50" 
+                          min="0" 
+                          max="100"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <p className="text-sm text-muted-foreground">
+                        Plus la valeur est élevée, plus la passerelle apparaîtra en premier (0-100)
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editGatewayForm.control}
+                  name="isRecommended"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel>Passerelle recommandée</FormLabel>
+                        <div className="text-sm text-muted-foreground">
+                          Marquer cette passerelle comme recommandée aux utilisateurs
+                        </div>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
                 {/* Provider-specific configuration */}
                 {editGatewayForm.watch('provider') === 'mollie' && (
                   <div className="space-y-4 border-t pt-4">
@@ -2358,6 +2521,27 @@ export default function AdminSettingsPage() {
                          )}
                        />
                     </div>
+
+                    <FormField
+                      control={editGatewayForm.control}
+                      name="stripeWebhookSecret"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Secret de Webhook (optionnel)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="password" 
+                              placeholder={editingGateway?.configuration?.stripeWebhookSecret ? "••••••••••••••••••••••••••••••••" : "whsec_..."} 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <p className="text-sm text-muted-foreground">
+                            {editingGateway?.configuration?.stripeWebhookSecret ? "Laissez vide pour conserver le secret actuel" : "Secret pour vérifier les webhooks Stripe"}
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
                                          <FormField
                        control={editGatewayForm.control}

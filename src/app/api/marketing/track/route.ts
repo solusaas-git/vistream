@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectToDatabase from '@/lib/mongoose'
 import MarketingAttribution, { IMarketingAttribution } from '@/models/MarketingAttribution'
+import { withAdmin } from '@/lib/rbac'
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,7 +59,7 @@ interface StatsData {
   [key: string]: { count: number; value: number }
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withAdmin(async (request: NextRequest, user) => {
   try {
     const { searchParams } = new URL(request.url)
     const campaignId = searchParams.get('campaign_id')
@@ -142,4 +143,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}) 

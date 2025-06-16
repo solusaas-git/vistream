@@ -9,7 +9,11 @@ export interface IContact extends Document {
   priority: 'low' | 'medium' | 'high' | 'urgent'
   assignedTo?: mongoose.Types.ObjectId
   tags: string[]
-  notes: string[]
+  notes: Array<{
+    content: string
+    author: mongoose.Types.ObjectId
+    createdAt: Date
+  }>
   ipAddress?: string
   userAgent?: string
   source: string

@@ -3,7 +3,7 @@ import { z } from 'zod'
 import connectToDatabase from '@/lib/mongoose'
 import User, { UserRole } from '@/models/User'
 import Subscription from '@/models/Subscription'
-import { withAdmin } from '@/lib/rbac'
+import { withAuth } from '@/lib/rbac'
 import { rateLimit, rateLimitConfigs, createRateLimitResponse } from '@/lib/rate-limit'
 
 // Validation schema for creating users
@@ -15,12 +15,12 @@ const createUserSchema = z.object({
   phoneNumber: z.string().min(8, "Le numéro doit contenir au moins 8 chiffres.").max(15).regex(/^\d+$/, "Le numéro ne doit contenir que des chiffres."),
   password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères."),
   role: z.enum(['admin', 'user', 'customer']),
-  isVerified: z.boolean().optional().default(false),
-  isActive: z.boolean().optional().default(true),
+  isVerified: z.boolean(),
+  isActive: z.boolean(),
 })
 
 // GET /api/admin/users - List users with pagination and filtering
-export const GET = withAdmin(async (request: NextRequest, user) => {
+export const GET = withAuth(async (request: NextRequest, user) => {
   try {
     // Apply rate limiting (bypassed for admin users)
     const rateLimitResult = rateLimit(request, rateLimitConfigs.default, user)
@@ -41,8 +41,51 @@ export const GET = withAdmin(async (request: NextRequest, user) => {
     const isActive = searchParams.get('isActive')
     const isVerified = searchParams.get('isVerified')
 
-    // Build filter query
+    // Build filter query based on user role
     const filter: any = {}
+    
+    // Role-based filtering
+    if (user.role === 'user') {
+      // Users can only see customers they are affiliated with
+      // Find subscriptions where this user is the affiliated user
+      const affiliatedSubscriptions = await Subscription.find({ 
+        affiliatedUserId: user.userId 
+      }).select('userId').lean()
+      
+      const affiliatedUserIds = affiliatedSubscriptions.map(sub => sub.userId)
+      
+      if (affiliatedUserIds.length === 0) {
+        // No affiliated customers, return empty result
+        return NextResponse.json({
+          success: true,
+          data: {
+            users: [],
+            pagination: {
+              page,
+              limit,
+              total: 0,
+              totalPages: 0,
+              hasNext: false,
+              hasPrev: false
+            }
+          }
+        })
+      }
+      
+      filter._id = { $in: affiliatedUserIds }
+      filter.role = 'customer' // Users can only see customers
+    } else if (user.role === 'admin') {
+      // Admins can see all users, apply role filter if specified
+      if (role) {
+        filter.role = role
+      }
+    } else {
+      // Customers shouldn't access this endpoint
+      return NextResponse.json(
+        { success: false, error: 'Accès non autorisé' },
+        { status: 403 }
+      )
+    }
     
     if (search) {
       filter.$or = [
@@ -50,10 +93,6 @@ export const GET = withAdmin(async (request: NextRequest, user) => {
         { lastName: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } }
       ]
-    }
-    
-    if (role) {
-      filter.role = role
     }
     
     if (isActive !== null) {
@@ -80,23 +119,22 @@ export const GET = withAdmin(async (request: NextRequest, user) => {
 
     // Get subscription data for each user
     const userIds = users.map(user => user._id)
-    const subscriptions = await Subscription.find({
-      userId: { $in: userIds },
-      status: { $in: ['active', 'inactive', 'cancelled'] }
-    }).sort({ createdAt: -1 })
+    const subscriptions = await Subscription.find({ 
+      userId: { $in: userIds } 
+    }).sort({ createdAt: -1 }).lean()
 
-    // Create a map of user subscriptions (most recent per user)
-    const userSubscriptionMap = new Map()
+    // Create a map of user subscriptions (latest subscription per user)
+    const subscriptionMap = new Map()
     subscriptions.forEach(sub => {
-      if (!userSubscriptionMap.has(sub.userId.toString())) {
-        userSubscriptionMap.set(sub.userId.toString(), sub)
+      if (!subscriptionMap.has(sub.userId.toString())) {
+        subscriptionMap.set(sub.userId.toString(), sub)
       }
     })
 
-    // Combine users with their subscription data
+    // Add subscription data to users
     const usersWithSubscriptions = users.map(user => ({
       ...user,
-      subscription: userSubscriptionMap.get((user._id as any).toString()) || null
+      subscription: subscriptionMap.get((user._id as any).toString()) || null
     }))
 
     const totalPages = Math.ceil(total / limit)
@@ -123,11 +161,19 @@ export const GET = withAdmin(async (request: NextRequest, user) => {
       { status: 500 }
     )
   }
-})
+}, 'user') // Allow both user and admin roles
 
 // POST /api/admin/users - Create new user
-export const POST = withAdmin(async (request: NextRequest, user) => {
+export const POST = withAuth(async (request: NextRequest, user) => {
   try {
+    // Only admins can create users
+    if (user.role !== 'admin') {
+      return NextResponse.json(
+        { success: false, error: 'Seuls les administrateurs peuvent créer des utilisateurs' },
+        { status: 403 }
+      )
+    }
+
     // Apply rate limiting (bypassed for admin users)
     const rateLimitResult = rateLimit(request, rateLimitConfigs.adminOperations, user)
     if (!rateLimitResult.success) {
@@ -148,28 +194,27 @@ export const POST = withAdmin(async (request: NextRequest, user) => {
     const existingUser = await User.findOne({ email: validatedData.email })
     if (existingUser) {
       return NextResponse.json(
-        { error: 'Un utilisateur avec cet email existe déjà.' },
+        { success: false, error: 'Un utilisateur avec cette adresse email existe déjà.' },
         { status: 400 }
       )
     }
     
     // Create new user
     const newUser = new User({
-      email: validatedData.email,
       firstName: validatedData.firstName,
       lastName: validatedData.lastName,
+      email: validatedData.email,
       phonePrefix: validatedData.phonePrefix,
       phoneNumber: validatedData.phoneNumber,
-      password: validatedData.password, // Will be hashed by pre-save middleware
+      password: validatedData.password, // Will be hashed by the model
       role: validatedData.role,
       isVerified: validatedData.isVerified,
       isActive: validatedData.isActive,
     })
     
-    // Save user to database
     await newUser.save()
     
-    // Return user without sensitive data
+    // Remove sensitive data from response
     const userResponse = newUser.toObject()
     delete userResponse.password
     delete userResponse.otp
@@ -188,28 +233,14 @@ export const POST = withAdmin(async (request: NextRequest, user) => {
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { 
-          error: 'Données invalides.', 
-          details: error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message
-          }))
-        },
-        { status: 400 }
-      )
-    }
-    
-    // Handle MongoDB duplicate key error
-    if ((error as any).code === 11000) {
-      return NextResponse.json(
-        { error: 'Un utilisateur avec cet email existe déjà.' },
+        { success: false, error: 'Données invalides.', details: error.errors },
         { status: 400 }
       )
     }
     
     return NextResponse.json(
-      { error: 'Erreur lors de la création de l\'utilisateur.' },
+      { success: false, error: 'Erreur lors de la création de l\'utilisateur.' },
       { status: 500 }
     )
   }
-}) 
+}, 'admin') // Only admins can create users 

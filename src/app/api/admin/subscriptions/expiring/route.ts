@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
       ...sub,
       planPrice: parseFloat(sub.planPrice) || 0,
       userId: {
-        ...sub.userId,
-        name: `${sub.userId.firstName} ${sub.userId.lastName}`
+        ...(sub.userId as any),
+        name: `${(sub.userId as any).firstName} ${(sub.userId as any).lastName}`
       }
     }))
 

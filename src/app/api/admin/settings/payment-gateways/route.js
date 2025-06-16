@@ -120,6 +120,8 @@ export async function POST(request) {
       provider: data.provider,
       displayName: data.displayName,
       description: data.description || '',
+      priority: data.priority || 0,
+      isRecommended: data.isRecommended || false,
       configuration,
       supportedCurrencies: data.supportedCurrencies || ['EUR', 'USD'],
       supportedPaymentMethods: data.supportedPaymentMethods || ['credit_card'],

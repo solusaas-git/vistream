@@ -73,6 +73,8 @@ export async function PUT(request, { params }) {
     if (data.name) gateway.name = data.name
     if (data.displayName) gateway.displayName = data.displayName
     if (data.description !== undefined) gateway.description = data.description
+    if (data.priority !== undefined) gateway.priority = data.priority
+    if (data.isRecommended !== undefined) gateway.isRecommended = data.isRecommended
     if (data.supportedCurrencies) gateway.supportedCurrencies = data.supportedCurrencies
     if (data.supportedPaymentMethods) gateway.supportedPaymentMethods = data.supportedPaymentMethods
     if (data.status) gateway.status = data.status

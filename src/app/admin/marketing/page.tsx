@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -117,59 +117,42 @@ interface AffiliationStats {
 
 export default function AdminMarketingPage() {
   const [attributions, setAttributions] = useState<MarketingAttribution[]>([])
-  const [stats, setStats] = useState<MarketingStats | null>(null)
-  const [plans, setPlans] = useState<Plan[]>([])
+  const [stats, setStats] = useState<MarketingStats>({
+    totalConversions: 0,
+    totalValue: 0,
+    bySource: {},
+    byCampaign: {},
+    byPlan: {}
+  })
   const [loading, setLoading] = useState(true)
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
-  const [generatedLinks, setGeneratedLinks] = useState<{ [key: string]: string }>({})
+  const [activeTab, setActiveTab] = useState('overview')
+  const [filters, setFilters] = useState({
+    source: '',
+    campaign: '',
+    plan: '',
+    startDate: '',
+    endDate: ''
+  })
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [generatedLinks, setGeneratedLinks] = useState<{[key: string]: string}>({})
   const [copiedLink, setCopiedLink] = useState<string | null>(null)
-  
-  // Affiliation data
+
+  // États pour les affiliations
   const [affiliationStats, setAffiliationStats] = useState<AffiliationStats | null>(null)
   const [affiliationLoading, setAffiliationLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState('generator')
-  
-  // Filtres
-  const [filters, setFilters] = useState({
-    utm_source: '',
-    utm_campaign: '',
-    start_date: '',
-    end_date: '',
-    conversion_type: ''
-  })
-
-  // Filtres d'affiliation
   const [affiliationFilters, setAffiliationFilters] = useState({
     userId: 'all',
     planId: 'all',
     affiliationCode: '',
     startDate: '',
     endDate: '',
-    dateRange: '' // pour les accès rapides
+    dateRange: ''
   })
 
   // Liste des utilisateurs pour le filtre
   const [users, setUsers] = useState<Array<{id: string, firstName: string, lastName: string, email: string, affiliationCode: string}>>([])
 
-  useEffect(() => {
-    fetchData()
-    fetchPlans()
-    fetchAffiliationStats()
-  }, [])
-
-  useEffect(() => {
-    if (Object.values(filters).some(v => v)) {
-      fetchData()
-    }
-  }, [filters])
-
-  useEffect(() => {
-    if (activeTab === 'affiliations' && !affiliationStats) {
-      fetchAffiliationStats()
-    }
-  }, [activeTab])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
@@ -195,9 +178,9 @@ export default function AdminMarketingPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters])
 
-  const fetchPlans = async () => {
+  const fetchPlans = useCallback(async () => {
     try {
       const response = await fetch('/api/plans')
       const data = await response.json()
@@ -209,9 +192,9 @@ export default function AdminMarketingPage() {
     } catch (error) {
       // Error loading plans - handled silently
     }
-  }
+  }, [])
 
-  const fetchAffiliationStats = async () => {
+  const fetchAffiliationStats = useCallback(async () => {
     try {
       setAffiliationLoading(true)
       const params = new URLSearchParams()
@@ -238,7 +221,32 @@ export default function AdminMarketingPage() {
     } finally {
       setAffiliationLoading(false)
     }
-  }
+  }, [affiliationFilters])
+
+  useEffect(() => {
+    fetchData()
+    fetchPlans()
+    fetchAffiliationStats()
+  }, [fetchData, fetchPlans, fetchAffiliationStats])
+
+  useEffect(() => {
+    if (Object.values(filters).some(v => v)) {
+      fetchData()
+    }
+  }, [fetchData, filters])
+
+  useEffect(() => {
+    if (activeTab === 'affiliations' && !affiliationStats) {
+      fetchAffiliationStats()
+    }
+  }, [activeTab, affiliationStats, fetchAffiliationStats])
+
+  // useEffect pour les filtres d'affiliation
+  useEffect(() => {
+    if (activeTab === 'affiliations') {
+      fetchAffiliationStats()
+    }
+  }, [affiliationFilters, activeTab, fetchAffiliationStats])
 
   // Fonction pour gérer les accès rapides de dates
   const handleDateRangeQuickSelect = (range: string) => {
@@ -287,13 +295,6 @@ export default function AdminMarketingPage() {
       dateRange: ''
     })
   }
-
-  // useEffect pour les filtres d'affiliation
-  useEffect(() => {
-    if (activeTab === 'affiliations') {
-      fetchAffiliationStats()
-    }
-  }, [affiliationFilters, activeTab])
 
   const generateMarketingLink = (type: string, plan: Plan) => {
     const baseUrl = window.location.origin
@@ -366,7 +367,6 @@ export default function AdminMarketingPage() {
       promo: generateMarketingLink('promo', plan)
     }
     setGeneratedLinks(links)
-    setSelectedPlan(plan)
   }
 
   const copyToClipboard = async (link: string, type: string) => {
@@ -548,10 +548,10 @@ export default function AdminMarketingPage() {
               </div>
 
               {/* Liens générés */}
-              {selectedPlan && generatedLinks && (
+              {generatedLinks && (
                 <div className="mt-8">
                   <h3 className="text-lg font-semibold mb-4">
-                    Liens marketing pour {selectedPlan.name}
+                    Liens marketing pour {generatedLinks.email.split('?')[0].split('/').pop()}
                   </h3>
                   <div className="space-y-4">
                     {Object.entries(generatedLinks).map(([type, link]) => (
@@ -623,38 +623,38 @@ export default function AdminMarketingPage() {
                   <Label>Source UTM</Label>
                   <Input
                     placeholder="email, facebook..."
-                    value={filters.utm_source}
-                    onChange={(e) => setFilters(prev => ({ ...prev, utm_source: e.target.value }))}
+                    value={filters.source}
+                    onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
                   />
                 </div>
                 <div>
                   <Label>Campagne</Label>
                   <Input
                     placeholder="welcome_series..."
-                    value={filters.utm_campaign}
-                    onChange={(e) => setFilters(prev => ({ ...prev, utm_campaign: e.target.value }))}
+                    value={filters.campaign}
+                    onChange={(e) => setFilters(prev => ({ ...prev, campaign: e.target.value }))}
                   />
                 </div>
                 <div>
                   <Label>Date début</Label>
                   <Input
                     type="date"
-                    value={filters.start_date}
-                    onChange={(e) => setFilters(prev => ({ ...prev, start_date: e.target.value }))}
+                    value={filters.startDate}
+                    onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
                   />
                 </div>
                 <div>
                   <Label>Date fin</Label>
                   <Input
                     type="date"
-                    value={filters.end_date}
-                    onChange={(e) => setFilters(prev => ({ ...prev, end_date: e.target.value }))}
+                    value={filters.endDate}
+                    onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
                   />
                 </div>
                 <div className="flex items-end">
-                  <Button onClick={() => setFilters({ utm_source: '', utm_campaign: '', start_date: '', end_date: '', conversion_type: '' })}>
-                    Réinitialiser
-                  </Button>
+                                     <Button onClick={() => setFilters({ source: '', campaign: '', plan: '', startDate: '', endDate: '' })}>
+                     Réinitialiser
+                   </Button>
                 </div>
               </div>
             </CardContent>

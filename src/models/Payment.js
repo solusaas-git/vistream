@@ -1,11 +1,18 @@
 import mongoose from 'mongoose'
 
 const paymentSchema = new mongoose.Schema({
-  // Mollie payment ID
-  molliePaymentId: {
+  // Payment provider
+  provider: {
     type: String,
     required: true,
-    unique: true,
+    enum: ['mollie', 'stripe', 'paypal'],
+    index: true
+  },
+  
+  // External payment ID (provider-specific)
+  externalPaymentId: {
+    type: String,
+    required: true,
     index: true
   },
   
@@ -45,12 +52,12 @@ const paymentSchema = new mongoose.Schema({
     maxlength: 255
   },
   
-  // Payment status from Mollie
+  // Payment status (normalized across providers)
   status: {
     type: String,
     required: true,
-    enum: ['open', 'canceled', 'pending', 'authorized', 'expired', 'failed', 'paid'],
-    default: 'open',
+    enum: ['pending', 'completed', 'failed', 'cancelled', 'expired', 'refunded'],
+    default: 'pending',
     index: true
   },
   
@@ -76,10 +83,40 @@ const paymentSchema = new mongoose.Schema({
   
   relatedId: mongoose.Schema.Types.ObjectId,
   
-  // Timestamps from Mollie
-  mollieCreatedAt: Date,
-  mollieExpiresAt: Date,
-  molliePaidAt: Date,
+  // Payment timestamps
+  paidAt: Date,
+  expiresAt: Date,
+  
+  // Provider-specific data
+  mollieData: {
+    paymentId: String,
+    checkoutUrl: String,
+    method: String,
+    profileId: String,
+    settlementAmount: {
+      value: String,
+      currency: String
+    }
+  },
+  
+  stripeData: {
+    sessionId: String,
+    paymentIntentId: String,
+    customerId: String,
+    paymentStatus: String,
+    receiptUrl: String,
+    invoiceId: String,
+    subscriptionId: String,
+    failureReason: String,
+    clientSecret: String
+  },
+  
+  paypalData: {
+    orderId: String,
+    paymentId: String,
+    payerId: String,
+    facilitatorAccessToken: String
+  },
   
   // Processing status
   isProcessed: {
@@ -95,7 +132,20 @@ const paymentSchema = new mongoose.Schema({
   webhookAttempts: {
     type: Number,
     default: 0
-  }
+  },
+  
+  // Sync tracking
+  lastSyncAt: Date,
+  
+  // Status history
+  statusHistory: [{
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'failed', 'cancelled', 'expired', 'refunded']
+    },
+    timestamp: Date,
+    source: String
+  }]
 
 }, {
   timestamps: true
@@ -104,18 +154,63 @@ const paymentSchema = new mongoose.Schema({
 // Indexes
 paymentSchema.index({ userId: 1, status: 1 })
 paymentSchema.index({ status: 1, createdAt: -1 })
+paymentSchema.index({ provider: 1, externalPaymentId: 1 }, { unique: true })
+paymentSchema.index({ 'mollieData.paymentId': 1 }, { sparse: true })
+paymentSchema.index({ 'stripeData.sessionId': 1 }, { sparse: true })
+paymentSchema.index({ 'stripeData.paymentIntentId': 1 }, { sparse: true })
+
+// Add compound index to help with duplicate detection
+paymentSchema.index({ 
+  userId: 1, 
+  provider: 1, 
+  'amount.value': 1, 
+  'amount.currency': 1, 
+  description: 1,
+  createdAt: -1 
+})
 
 // Methods
 paymentSchema.methods.isSuccessful = function() {
-  return this.status === 'paid'
+  return this.status === 'completed'
 }
 
 paymentSchema.methods.isPending = function() {
-  return ['open', 'pending', 'authorized'].includes(this.status)
+  return this.status === 'pending'
 }
 
 paymentSchema.methods.isFailed = function() {
-  return ['canceled', 'expired', 'failed'].includes(this.status)
+  return ['failed', 'cancelled', 'expired'].includes(this.status)
 }
 
-export default mongoose.models.Payment || mongoose.model('Payment', paymentSchema) 
+paymentSchema.methods.getProviderPaymentId = function() {
+  switch (this.provider) {
+    case 'mollie':
+      return this.mollieData?.paymentId || this.externalPaymentId
+    case 'stripe':
+      return this.stripeData?.sessionId || this.stripeData?.paymentIntentId || this.externalPaymentId
+    case 'paypal':
+      return this.paypalData?.orderId || this.externalPaymentId
+    default:
+      return this.externalPaymentId
+  }
+}
+
+paymentSchema.methods.getCheckoutUrl = function() {
+  switch (this.provider) {
+    case 'mollie':
+      return this.mollieData?.checkoutUrl || this.checkoutUrl
+    case 'stripe':
+      return this.checkoutUrl // Stripe checkout URL is stored in main checkoutUrl field
+    case 'paypal':
+      return this.checkoutUrl
+    default:
+      return this.checkoutUrl
+  }
+}
+
+// Force delete the model from cache to ensure schema updates
+if (mongoose.models.Payment) {
+  delete mongoose.models.Payment
+}
+
+export default mongoose.model('Payment', paymentSchema) 

@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { CreditCard, Calendar, User, CheckCircle, AlertCircle, Star, Crown, Shield } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { CreditCard, Calendar, User, CheckCircle, AlertCircle, Star, Crown, Shield, ArrowUp, Loader2, Check, X, RefreshCw } from 'lucide-react'
 
 interface UserData {
   firstName: string
@@ -29,14 +31,60 @@ interface SubscriptionData {
   updatedAt: string
 }
 
+interface Plan {
+  _id: string
+  name: string
+  description: string
+  price: string
+  period: string
+  highlight: boolean
+  features: string[]
+  isActive: boolean
+  order: number
+}
+
+interface UpgradeData {
+  currentPlan: {
+    id: string
+    name: string
+    price: string
+    period: string
+  }
+  newPlan: {
+    id: string
+    name: string
+    price: string
+    period: string
+  }
+  daysRemaining: number
+  upgradeCost: number
+  currency: string
+}
+
 export default function CustomerSubscriptionPage() {
+  const router = useRouter()
   const [user, setUser] = useState<UserData | null>(null)
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [availablePlans, setAvailablePlans] = useState<Plan[]>([])
+  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false)
+  const [upgradeError, setUpgradeError] = useState<string>('')
 
   useEffect(() => {
     fetchUserData()
     fetchSubscriptionData()
+    fetchAvailablePlans()
+
+    // Refresh data when user returns to the page (e.g., from upgrade payment)
+    const handleFocus = () => {
+      fetchSubscriptionData()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+    }
   }, [])
 
   const fetchUserData = async () => {
@@ -67,6 +115,75 @@ export default function CustomerSubscriptionPage() {
     }
   }
 
+  const fetchAvailablePlans = async () => {
+    try {
+      const response = await fetch('/api/plans')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setAvailablePlans(data.data.plans || [])
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching plans:', error)
+    }
+  }
+
+  const handleUpgradeClick = () => {
+    if (!subscription || !isSubscriptionActive) {
+      setUpgradeError('Vous devez avoir un abonnement actif pour effectuer une mise à niveau')
+      return
+    }
+    setIsUpgradeDialogOpen(true)
+    setUpgradeError('')
+  }
+
+  const handlePlanUpgrade = (planId: string) => {
+    // Redirect to upgrade payment page without provider - user will choose on payment page
+    router.push(`/admin/upgrade-payment?planId=${planId}`)
+  }
+
+  const resetUpgradeDialog = () => {
+    setIsUpgradeDialogOpen(false)
+    setUpgradeError('')
+  }
+
+  const handleRefresh = async () => {
+    setLoading(true)
+    await Promise.all([
+      fetchUserData(),
+      fetchSubscriptionData(),
+      fetchAvailablePlans()
+    ])
+  }
+
+  const handleRenewal = (planId?: string) => {
+    // Use current plan ID if no specific plan is provided
+    const renewalPlanId = planId || subscription?.planId
+    if (renewalPlanId) {
+      router.push(`/admin/upgrade-payment?planId=${renewalPlanId}&renewal=true`)
+    }
+  }
+
+  const getDaysUntilExpiry = () => {
+    if (!subscription?.endDate) return null
+    const now = new Date()
+    const endDate = new Date(subscription.endDate)
+    const diffTime = endDate.getTime() - now.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays
+  }
+
+  const isExpiringSoon = () => {
+    const daysUntilExpiry = getDaysUntilExpiry()
+    return daysUntilExpiry !== null && daysUntilExpiry <= 7 && daysUntilExpiry > 0
+  }
+
+  const isExpired = () => {
+    const daysUntilExpiry = getDaysUntilExpiry()
+    return daysUntilExpiry !== null && daysUntilExpiry <= 0
+  }
+
   const getPlanIcon = (planName: string) => {
     const lowerName = planName.toLowerCase()
     if (lowerName.includes('pro') || lowerName.includes('enterprise')) {
@@ -76,6 +193,23 @@ export default function CustomerSubscriptionPage() {
     } else {
       return <User className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
     }
+  }
+
+  const getAvailableUpgradePlans = () => {
+    if (!subscription) return []
+    
+    // Parse current plan price for comparison
+    const currentPrice = parseFloat(subscription.planPrice.replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+    
+    // Return plans that are more expensive than current plan
+    return availablePlans.filter(plan => {
+      const planPrice = parseFloat(plan.price.replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+      return planPrice > currentPrice && plan.isActive
+    }).sort((a, b) => {
+      const priceA = parseFloat(a.price.replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+      const priceB = parseFloat(b.price.replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+      return priceA - priceB
+    })
   }
 
   const getStatusBadge = (status: string) => {
@@ -131,6 +265,16 @@ export default function CustomerSubscriptionPage() {
               {subscription ? `Abonnement ${subscription.planName} actif` : 'Gérez votre abonnement et vos préférences'}
             </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Actualiser
+          </Button>
         </div>
       </div>
 
@@ -220,6 +364,48 @@ export default function CustomerSubscriptionPage() {
         <CardContent className="space-y-4 px-4 sm:px-6 pb-4 sm:pb-6">
           {subscription ? (
             <div className="space-y-4 sm:space-y-6">
+              {/* Expiry Warning */}
+              {(isExpiringSoon() || isExpired()) && (
+                <div className={`border rounded-lg p-4 sm:p-6 ${
+                  isExpired() 
+                    ? 'bg-red-50 border-red-200' 
+                    : 'bg-orange-50 border-orange-200'
+                }`}>
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
+                      isExpired() ? 'text-red-600' : 'text-orange-600'
+                    }`} />
+                    <div className="min-w-0 flex-1">
+                      <h3 className={`font-medium text-sm sm:text-base ${
+                        isExpired() ? 'text-red-900' : 'text-orange-900'
+                      }`}>
+                        {isExpired() ? 'Abonnement expiré' : 'Abonnement expire bientôt'}
+                      </h3>
+                      <p className={`text-xs sm:text-sm mt-1 ${
+                        isExpired() ? 'text-red-700' : 'text-orange-700'
+                      }`}>
+                        {isExpired() 
+                          ? `Votre abonnement a expiré le ${formatDate(subscription.endDate!)}. Renouvelez-le pour continuer à utiliser nos services.`
+                          : `Votre abonnement expire dans ${getDaysUntilExpiry()} jour${getDaysUntilExpiry()! > 1 ? 's' : ''} (${formatDate(subscription.endDate!)}). Renouvelez-le maintenant pour éviter toute interruption.`
+                        }
+                      </p>
+                      <Button 
+                        size="sm" 
+                        className={`mt-3 ${
+                          isExpired() 
+                            ? 'bg-red-600 hover:bg-red-700' 
+                            : 'bg-orange-600 hover:bg-orange-700'
+                        }`}
+                        onClick={() => handleRenewal()}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Renouveler maintenant
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Current Plan Details */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0">
@@ -239,7 +425,10 @@ export default function CustomerSubscriptionPage() {
                         Actif depuis le {formatDate(subscription.startDate)}
                       </p>
                       {subscription.endDate && (
-                        <p className="text-xs text-blue-600 mt-1">
+                        <p className={`text-xs mt-1 ${
+                          isExpired() ? 'text-red-600' : 
+                          isExpiringSoon() ? 'text-orange-600' : 'text-blue-600'
+                        }`}>
                           {isSubscriptionActive ? 
                             `Expire le ${formatDate(subscription.endDate)}` : 
                             `Expiré le ${formatDate(subscription.endDate)}`
@@ -256,16 +445,43 @@ export default function CustomerSubscriptionPage() {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <Button variant="outline" className="flex-1 h-10 sm:h-auto text-sm">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Changer de plan
-                </Button>
-                <Button variant="outline" className="h-10 sm:h-auto text-sm">
-                  Gérer le paiement
-                </Button>
-                {subscription.autoRenew && (
-                  <Button variant="outline" className="text-red-600 hover:text-red-700 h-10 sm:h-auto text-sm">
-                    Annuler l'abonnement
+                {/* Renewal Button - Priority for expired/expiring subscriptions */}
+                {(isExpired() || isExpiringSoon()) && (
+                  <Button 
+                    className={`flex-1 h-10 sm:h-auto text-sm ${
+                      isExpired() 
+                        ? 'bg-red-600 hover:bg-red-700' 
+                        : 'bg-orange-600 hover:bg-orange-700'
+                    }`}
+                    onClick={() => handleRenewal()}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {isExpired() ? 'Renouveler l\'abonnement' : 'Renouveler maintenant'}
+                  </Button>
+                )}
+                
+                {/* Upgrade Button - Only show if subscription is active and not expiring soon */}
+                {isSubscriptionActive && !isExpiringSoon() && !isExpired() && (
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 h-10 sm:h-auto text-sm"
+                    onClick={handleUpgradeClick}
+                    disabled={getAvailableUpgradePlans().length === 0}
+                  >
+                    <ArrowUp className="mr-2 h-4 w-4" />
+                    {getAvailableUpgradePlans().length > 0 ? 'Mettre à niveau' : 'Aucune mise à niveau disponible'}
+                  </Button>
+                )}
+
+                {/* Renewal Button for active subscriptions (secondary) */}
+                {isSubscriptionActive && !isExpiringSoon() && !isExpired() && (
+                  <Button 
+                    variant="outline" 
+                    className="h-10 sm:h-auto text-sm"
+                    onClick={() => handleRenewal()}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Renouveler
                   </Button>
                 )}
               </div>
@@ -342,6 +558,75 @@ export default function CustomerSubscriptionPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Upgrade Dialog */}
+      <Dialog open={isUpgradeDialogOpen} onOpenChange={resetUpgradeDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowUp className="h-5 w-5" />
+              Mettre à niveau votre abonnement
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {upgradeError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-800">{upgradeError}</p>
+              </div>
+            )}
+
+            <div>
+              <h3 className="text-lg font-medium mb-4">Sélectionnez votre nouveau plan</h3>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {getAvailableUpgradePlans().map((plan) => (
+                  <Card 
+                    key={plan._id} 
+                    className="cursor-pointer transition-all hover:shadow-md hover:ring-2 hover:ring-blue-500"
+                                                    onClick={() => handlePlanUpgrade(plan._id)}
+                  >
+                    <CardHeader className="text-center pb-2">
+                      <div className="flex items-center justify-center mb-2">
+                        {getPlanIcon(plan.name)}
+                      </div>
+                      <CardTitle className="text-lg">{plan.name}</CardTitle>
+                      <div className="text-2xl font-bold text-blue-600">
+                        {plan.price}
+                        <span className="text-sm font-normal text-gray-600">/{plan.period}</span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                      <p className="text-sm text-gray-600 mb-3">{plan.description}</p>
+                      <ul className="space-y-1">
+                        {plan.features.slice(0, 3).map((feature, index) => (
+                          <li key={index} className="flex items-center gap-2 text-sm">
+                            <Check className="h-3 w-3 text-green-600 flex-shrink-0" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                        {plan.features.length > 3 && (
+                          <li className="text-xs text-gray-500">
+                            +{plan.features.length - 3} autres fonctionnalités
+                          </li>
+                        )}
+                      </ul>
+                      <Button className="w-full mt-4" size="sm">
+                        Choisir ce plan
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {getAvailableUpgradePlans().length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">Aucune mise à niveau disponible pour votre plan actuel.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 

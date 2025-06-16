@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from './auth'
-import connectToDatabase from './mongoose'
-import User, { UserRole } from '@/models/User'
 
 export interface AuthenticatedUser {
   userId: string
@@ -10,15 +8,66 @@ export interface AuthenticatedUser {
   email: string
   phonePrefix: string
   phoneNumber: string
-  role: UserRole
+  role: 'admin' | 'user' | 'customer'
   isVerified: boolean
   isActive: boolean
   createdAt: Date
 }
 
-// Get authenticated user from request
+// Check if user has required role
+export function hasRole(userRole: 'admin' | 'user' | 'customer', requiredRole: 'admin' | 'user' | 'customer'): boolean {
+  const roleHierarchy: Record<string, number> = {
+    'customer': 1,
+    'user': 2,
+    'admin': 3
+  }
+  
+  return roleHierarchy[userRole] >= roleHierarchy[requiredRole]
+}
+
+// Role-based route permissions
+export const routePermissions: Record<string, 'admin' | 'user' | 'customer'> = {
+  '/dashboard': 'customer',
+  '/admin': 'user', // Allow both user and admin roles
+  '/admin/subscription': 'customer',
+  '/admin/subscriptions': 'user', // Allow both user and admin roles
+  '/admin/profile': 'customer', // Allow all authenticated roles
+  '/admin/users': 'admin', // Admin only - users have dedicated customers page
+  '/admin/customers': 'user', // Allow users to see their customers
+  '/admin/payments': 'admin', // Admin only
+  '/admin/plans': 'admin', // Admin only
+  '/admin/marketing': 'admin', // Admin only
+  '/admin/contacts': 'admin', // Admin only (messages)
+  '/admin/settings': 'admin', // Admin only
+  '/user': 'user',
+  '/api/admin': 'admin',
+  '/api/admin/users': 'user', // Allow users to access their customers
+  '/api/admin/payments': 'user', // Allow users to access payments for their customers
+  '/api/admin/plans': 'admin',
+  '/api/admin/marketing': 'admin',
+  '/api/admin/contacts': 'admin',
+  '/api/admin/settings': 'admin',
+  '/api/admin/subscriptions': 'user', // Allow users to access their affiliated subscriptions
+  '/api/users': 'user',
+}
+
+// Check if user can access route
+export function canAccessRoute(userRole: 'admin' | 'user' | 'customer', route: string): boolean {
+  const requiredRole = routePermissions[route]
+  if (!requiredRole) {
+    return true // Public route
+  }
+  
+  return hasRole(userRole, requiredRole)
+}
+
+// Server-side functions that require database access (for API routes only)
 export async function getAuthenticatedUser(request: NextRequest): Promise<AuthenticatedUser | null> {
   try {
+    // Dynamic import to avoid Edge Runtime issues
+    const connectToDatabase = (await import('./mongoose')).default
+    const User = (await import('@/models/User')).default
+    
     // Get token from cookies or headers
     const token = request.cookies.get('auth-token')?.value || 
                  request.headers.get('authorization')?.replace('Bearer ', '')
@@ -59,17 +108,6 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<Authen
   }
 }
 
-// Check if user has required role
-export function hasRole(userRole: UserRole, requiredRole: UserRole): boolean {
-  const roleHierarchy: Record<UserRole, number> = {
-    'customer': 1,
-    'user': 2,
-    'admin': 3
-  }
-  
-  return roleHierarchy[userRole] >= roleHierarchy[requiredRole]
-}
-
 // Middleware to require authentication
 export async function requireAuth(request: NextRequest): Promise<{ user: AuthenticatedUser } | NextResponse> {
   const user = await getAuthenticatedUser(request)
@@ -92,7 +130,7 @@ export async function requireAuth(request: NextRequest): Promise<{ user: Authent
 }
 
 // Middleware to require specific role
-export async function requireRole(request: NextRequest, requiredRole: UserRole): Promise<{ user: AuthenticatedUser } | NextResponse> {
+export async function requireRole(request: NextRequest, requiredRole: 'admin' | 'user' | 'customer'): Promise<{ user: AuthenticatedUser } | NextResponse> {
   const authResult = await requireAuth(request)
   
   if (authResult instanceof NextResponse) {
@@ -124,7 +162,7 @@ export async function requireUser(request: NextRequest): Promise<{ user: Authent
 // Helper to create protected API handler
 export function withAuth<T extends any[]>(
   handler: (request: NextRequest, user: AuthenticatedUser, ...args: T) => Promise<NextResponse>,
-  requiredRole?: UserRole
+  requiredRole?: 'admin' | 'user' | 'customer'
 ) {
   return async (request: NextRequest, ...args: T): Promise<NextResponse> => {
     try {
@@ -156,25 +194,4 @@ export function withAdmin<T extends any[]>(
   handler: (request: NextRequest, user: AuthenticatedUser, ...args: T) => Promise<NextResponse>
 ) {
   return withAuth(handler, 'admin')
-}
-
-// Role-based route permissions
-export const routePermissions: Record<string, UserRole> = {
-  '/dashboard': 'customer',
-  '/admin': 'admin',
-  '/admin/users': 'admin',
-  '/admin/settings': 'admin',
-  '/user': 'user',
-  '/api/admin': 'admin',
-  '/api/users': 'user',
-}
-
-// Check if user can access route
-export function canAccessRoute(userRole: UserRole, route: string): boolean {
-  const requiredRole = routePermissions[route]
-  if (!requiredRole) {
-    return true // Public route
-  }
-  
-  return hasRole(userRole, requiredRole)
 } 

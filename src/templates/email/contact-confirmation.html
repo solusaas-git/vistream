@@ -1,0 +1,56 @@
+<div class="email-header welcome" style="background: #f0f9ff; border-bottom: 4px solid #667eea; padding: 30px; text-align: center; color: #333333;">
+  <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #667eea !important;">📧 Message reçu !</h1>
+  <p style="margin: 10px 0 0 0; font-size: 16px; color: #666666 !important;">Confirmation de votre message Vistream</p>
+</div>
+
+<div class="email-content">
+  <h2>Bonjour {{name}} !</h2>
+  
+  <p>Merci de nous avoir contactés ! Nous avons bien reçu votre message et nous vous répondrons dans les plus brefs délais.</p>
+  
+  <div class="info-box" style="background-color: #f0fdf4; border-left: 4px solid #22c55e; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+    <h3 style="margin: 0 0 10px 0; color: #22c55e; font-size: 18px; font-weight: 600;">✅ Votre message</h3>
+    <ul style="margin: 0; padding-left: 20px; color: #666666;">
+      <li style="margin-bottom: 5px;"><strong>Objet :</strong> {{subject}}</li>
+      <li style="margin-bottom: 5px;"><strong>Date :</strong> {{date}}</li>
+      <li style="margin-bottom: 5px;"><strong>Référence :</strong> #{{messageId}}</li>
+    </ul>
+  </div>
+  
+  <div class="alert-box" style="background-color: #f0f9ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 20px; margin: 25px 0;">
+    <h4 style="margin: 0 0 10px 0; color: #4338ca; font-size: 16px; font-weight: 600;">⏱️ Temps de réponse</h4>
+    <p style="margin: 0; color: #666666;">Notre équipe s'engage à vous répondre sous <strong>24 heures</strong> pendant les jours ouvrables. Pour les demandes urgentes, n'hésitez pas à nous contacter directement.</p>
+  </div>
+  
+  <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 25px 0;">
+    <h4 style="margin: 0 0 15px 0; color: #333333; font-size: 16px; font-weight: 600;">📋 Récapitulatif de votre message :</h4>
+    <div style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 15px;">
+      <p style="margin: 0; color: #666666; font-style: italic; line-height: 1.6;">{{message}}</p>
+    </div>
+  </div>
+  
+  <div class="info-box" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+    <h3 style="margin: 0 0 10px 0; color: #d97706; font-size: 18px; font-weight: 600;">💡 En attendant notre réponse</h3>
+    <ul style="margin: 0; padding-left: 20px; color: #666666;">
+      <li style="margin-bottom: 5px;">Découvrez notre <a href="{{faqUrl}}" style="color: #d97706;">centre d'aide</a></li>
+      <li style="margin-bottom: 5px;">Explorez nos <a href="{{featuresUrl}}" style="color: #d97706;">fonctionnalités</a></li>
+      <li style="margin-bottom: 5px;">Consultez nos <a href="{{pricingUrl}}" style="color: #d97706;">tarifs</a></li>
+      <li style="margin-bottom: 5px;">Suivez-nous sur nos réseaux sociaux</li>
+    </ul>
+  </div>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="{{dashboardUrl}}" class="btn" style="display: inline-block; padding: 15px 30px; background-color: #667eea; color: white !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; text-align: center;">
+      Découvrir Vistream
+    </a>
+  </div>
+  
+  <p>Si vous avez d'autres questions ou si votre demande est urgente, n'hésitez pas à nous contacter à nouveau.</p>
+  
+  <div class="email-footer" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eeeeee; text-align: center;">
+    <p style="color: #999999; font-size: 12px; margin: 0; line-height: 1.4;">
+      Cet email de confirmation a été envoyé automatiquement par Vistream<br>
+      Merci de votre confiance et à bientôt !
+    </p>
+  </div>
+</div> 

@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
+import { useUserRole } from '@/components/ui/role-guard'
 import { 
   CreditCard, 
   Plus, 
@@ -36,6 +37,23 @@ import {
   User
 } from 'lucide-react'
 
+interface Payment {
+  id: string
+  externalId: string
+  provider: string
+  status: string
+  amount: {
+    value: number
+    currency: string
+  }
+  description: string
+  method?: string
+  createdAt: string
+  paidAt?: string
+  webhookProcessedAt?: string
+  isProcessed?: boolean
+}
+
 interface Subscription {
   _id: string
   userId: string
@@ -53,6 +71,12 @@ interface Subscription {
   currency: string
   paymentMethod: string
   autoRenew: boolean
+  // Payment stats from API
+  paymentStats?: {
+    totalPayments: number
+    completedPayments: number
+    totalAmount: number
+  }
   // Affiliation data
   affiliationCode?: string
   affiliatedUserId?: string
@@ -65,6 +89,8 @@ interface Subscription {
   saleValue: number
   createdAt: string
   updatedAt: string
+  // Payment data (loaded on demand)
+  payments?: Payment[]
 }
 
 interface PaginationInfo {
@@ -91,6 +117,7 @@ const createSubscriptionSchema = z.object({
 type CreateSubscriptionFormValues = z.infer<typeof createSubscriptionSchema>
 
 export default function AdminSubscriptionsPage() {
+  const { user: currentUser, isAdmin } = useUserRole()
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1,
@@ -108,6 +135,7 @@ export default function AdminSubscriptionsPage() {
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loadingPayments, setLoadingPayments] = useState(false)
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -310,6 +338,92 @@ export default function AdminSubscriptionsPage() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR')
+  }
+
+  const fetchSubscriptionPayments = async (userId: string | any) => {
+    try {
+      setLoadingPayments(true)
+      
+      // Convert userId to string - handle ObjectId objects properly
+      let userIdString: string
+      if (typeof userId === 'string') {
+        userIdString = userId
+      } else if (userId && typeof userId === 'object' && userId._id) {
+        // Handle populated user object
+        userIdString = userId._id.toString()
+      } else if (userId && typeof userId === 'object' && userId.toString) {
+        // Handle ObjectId object
+        userIdString = userId.toString()
+      } else {
+        // Fallback - convert to string
+        userIdString = String(userId)
+      }
+      
+      console.log('Fetching payments for userId:', userIdString)
+      const response = await fetch(`/api/admin/payments?userId=${encodeURIComponent(userIdString)}&limit=10`)
+      const data = await response.json()
+      
+      if (data.success) {
+        return data.data.payments || []
+      } else {
+        console.error('Error fetching payments:', data.error)
+        return []
+      }
+    } catch (error) {
+      console.error('Error fetching payments:', error)
+      return []
+    } finally {
+      setLoadingPayments(false)
+    }
+  }
+
+  const getPaymentStatusBadge = (status: string) => {
+    const statusConfig = {
+      completed: { 
+        className: 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200', 
+        icon: CheckCircle, 
+        iconColor: 'text-green-600' 
+      },
+      pending: { 
+        className: 'bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200', 
+        icon: AlertTriangle, 
+        iconColor: 'text-yellow-600' 
+      },
+      failed: { 
+        className: 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200', 
+        icon: XCircle, 
+        iconColor: 'text-red-600' 
+      },
+      cancelled: { 
+        className: 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200', 
+        icon: XCircle, 
+        iconColor: 'text-gray-600' 
+      }
+    }
+
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
+    const Icon = config.icon
+
+    return (
+      <Badge className={`flex items-center gap-1 text-xs transition-colors ${config.className}`}>
+        <Icon className={`h-3 w-3 ${config.iconColor}`} />
+        {status}
+      </Badge>
+    )
+  }
+
+  const getProviderBadge = (provider: string) => {
+    const colors = {
+      mollie: 'bg-blue-100 text-blue-800 border-blue-200',
+      stripe: 'bg-purple-100 text-purple-800 border-purple-200',
+      paypal: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+    }
+
+    return (
+      <Badge className={`text-xs ${colors[provider as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
+        {provider}
+      </Badge>
+    )
   }
 
   return (
@@ -756,20 +870,26 @@ export default function AdminSubscriptionsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              setSelectedSubscription(subscription)
+                            onClick={async () => {
+                              const payments = await fetchSubscriptionPayments(subscription.userId)
+                              setSelectedSubscription({
+                                ...subscription,
+                                payments
+                              })
                               setIsDetailDialogOpen(true)
                             }}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteSubscription(subscription._id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {isAdmin && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteSubscription(subscription._id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -812,7 +932,7 @@ export default function AdminSubscriptionsPage() {
 
       {/* Subscription Detail Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
@@ -820,7 +940,7 @@ export default function AdminSubscriptionsPage() {
             </DialogTitle>
           </DialogHeader>
           {selectedSubscription && (
-            <div className="space-y-6">
+            <div className="space-y-6 pb-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Utilisateur</Label>
@@ -921,6 +1041,67 @@ export default function AdminSubscriptionsPage() {
                   </div>
                 </div>
               )}
+
+              {/* Paiements associés */}
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3 flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Paiements Associés
+                  {selectedSubscription.payments && selectedSubscription.payments.length > 0 && (
+                    <Badge variant="outline" className="ml-2">
+                      {selectedSubscription.payments.length}
+                    </Badge>
+                  )}
+                </h4>
+                
+                {loadingPayments ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : selectedSubscription.payments && selectedSubscription.payments.length > 0 ? (
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {selectedSubscription.payments.map((payment) => (
+                      <div key={payment.id} className="border rounded-lg p-3 bg-gray-50">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {getPaymentStatusBadge(payment.status)}
+                            {getProviderBadge(payment.provider)}
+                          </div>
+                          <div className="text-sm font-medium">
+                            {payment.amount.value.toLocaleString()} {payment.amount.currency}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                          <div>
+                            <span className="font-medium">ID:</span> {payment.externalId}
+                          </div>
+                          <div>
+                            <span className="font-medium">Méthode:</span> {payment.method || 'N/A'}
+                          </div>
+                          <div>
+                            <span className="font-medium">Créé:</span> {formatDate(payment.createdAt)}
+                          </div>
+                          <div>
+                            <span className="font-medium">Payé:</span> {payment.paidAt ? formatDate(payment.paidAt) : 'N/A'}
+                          </div>
+                        </div>
+                        
+                        {payment.description && (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            <span className="font-medium">Description:</span> {payment.description}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Aucun paiement trouvé pour cet abonnement</p>
+                  </div>
+                )}
+              </div>
               
               <div className="border-t pt-4">
                 <div className="grid grid-cols-2 gap-4">

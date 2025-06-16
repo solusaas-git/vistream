@@ -1,42 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyToken } from '@/lib/auth'
+import { withAuth } from '@/lib/rbac'
 import connectToDatabase from '@/lib/mongoose'
 import Subscription from '@/models/Subscription'
 import User from '@/models/User'
+import Payment from '@/models/Payment'
 
 // GET /api/admin/subscriptions - Fetch subscriptions with filtering and pagination
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, user) => {
   try {
-    // Get token from cookie
-    const token = request.cookies.get('auth-token')?.value
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token d\'authentification manquant' },
-        { status: 401 }
-      )
-    }
-
-    // Verify token and check admin role
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Token invalide' },
-        { status: 401 }
-      )
-    }
-
     // Connect to database
     await connectToDatabase()
-
-    // Verify user is admin
-    const user = await User.findById(decoded.userId)
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json(
-        { success: false, error: 'Accès non autorisé' },
-        { status: 403 }
-      )
-    }
 
     // Get query parameters
     const { searchParams } = new URL(request.url)
@@ -46,8 +19,22 @@ export async function GET(request: NextRequest) {
     const planFilter = searchParams.get('plan') || ''
     const statusFilter = searchParams.get('status') || ''
 
-    // Build query
+    // Build query based on user role
     const query: any = {}
+    
+    // Role-based filtering
+    if (user.role === 'user') {
+      // Users can only see subscriptions they are affiliated with
+      query.affiliatedUserId = user.userId
+    } else if (user.role === 'admin') {
+      // Admins can see all subscriptions
+    } else {
+      // Customers shouldn't access this endpoint
+      return NextResponse.json(
+        { success: false, error: 'Accès non autorisé' },
+        { status: 403 }
+      )
+    }
     
     if (statusFilter && statusFilter !== 'all') {
       query.status = statusFilter
@@ -90,8 +77,16 @@ export async function GET(request: NextRequest) {
     const total = search ? filteredSubscriptions.length : await Subscription.countDocuments(query)
     const totalPages = Math.ceil(total / limit)
 
-    // Calculate stats
-    const allSubscriptions = await Subscription.find({})
+    // Calculate stats based on user role
+    let allSubscriptions
+    if (user.role === 'user') {
+      // Users only see stats for their affiliated subscriptions
+      allSubscriptions = await Subscription.find({ affiliatedUserId: user.userId })
+    } else {
+      // Admins see all subscription stats
+      allSubscriptions = await Subscription.find({})
+    }
+    
     const stats = {
       total: allSubscriptions.length,
       active: allSubscriptions.filter(sub => sub.status === 'active').length,
@@ -106,13 +101,45 @@ export async function GET(request: NextRequest) {
         }, 0) / allSubscriptions.length : 0
     }
 
+    // Get payment counts for all users
+    const userIds = filteredSubscriptions.map(sub => sub.userId)
+    const paymentCounts = await Payment.aggregate([
+      { $match: { userId: { $in: userIds } } },
+      { 
+        $group: { 
+          _id: '$userId', 
+          totalPayments: { $sum: 1 },
+          completedPayments: { 
+            $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } 
+          },
+          totalAmount: { 
+            $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$amount.value', 0] } 
+          }
+        } 
+      }
+    ])
+
+    // Create a map for quick lookup
+    const paymentCountMap = paymentCounts.reduce((acc, item) => {
+      acc[item._id.toString()] = {
+        total: item.totalPayments,
+        completed: item.completedPayments,
+        totalAmount: item.totalAmount
+      }
+      return acc
+    }, {} as Record<string, { total: number; completed: number; totalAmount: number }>)
+
     // Format subscriptions for response
     const formattedSubscriptions = filteredSubscriptions.map(sub => {
       const user = sub.userId as any
       const affiliatedUser = sub.affiliatedUserId as any
+      // Get the actual user ID string (handle both ObjectId and populated user object)
+      const actualUserId = user && user._id ? user._id.toString() : sub.userId.toString()
+      const paymentInfo = paymentCountMap[actualUserId] || { total: 0, completed: 0, totalAmount: 0 }
+      
       return {
         _id: sub._id,
-        userId: sub.userId,
+        userId: actualUserId,
         user: user ? {
           firstName: user.firstName,
           lastName: user.lastName,
@@ -130,6 +157,12 @@ export async function GET(request: NextRequest) {
         currency: 'EUR',
         paymentMethod: 'stripe',
         autoRenew: sub.autoRenew,
+        // Payment data
+        paymentStats: {
+          totalPayments: paymentInfo.total,
+          completedPayments: paymentInfo.completed,
+          totalAmount: paymentInfo.totalAmount
+        },
         // Affiliation data
         affiliationCode: sub.affiliationCode,
         affiliatedUserId: sub.affiliatedUserId,
@@ -164,45 +197,25 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching subscriptions:', error)
     return NextResponse.json(
-      { success: false, error: 'Erreur interne du serveur' },
+      { success: false, error: 'Erreur lors de la récupération des abonnements' },
       { status: 500 }
     )
   }
-}
+}, 'user') // Allow both user and admin roles
 
 // POST /api/admin/subscriptions - Create new subscription
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, user) => {
   try {
-    // Get token from cookie
-    const token = request.cookies.get('auth-token')?.value
-
-    if (!token) {
+    // Only admins can create subscriptions
+    if (user.role !== 'admin') {
       return NextResponse.json(
-        { success: false, error: 'Token d\'authentification manquant' },
-        { status: 401 }
-      )
-    }
-
-    // Verify token and check admin role
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Token invalide' },
-        { status: 401 }
+        { success: false, error: 'Seuls les administrateurs peuvent créer des abonnements' },
+        { status: 403 }
       )
     }
 
     // Connect to database
     await connectToDatabase()
-
-    // Verify user is admin
-    const user = await User.findById(decoded.userId)
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json(
-        { success: false, error: 'Accès non autorisé' },
-        { status: 403 }
-      )
-    }
 
     const body = await request.json()
 
@@ -258,8 +271,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating subscription:', error)
     return NextResponse.json(
-      { success: false, error: 'Erreur interne du serveur' },
+      { success: false, error: 'Erreur lors de la création de l\'abonnement' },
       { status: 500 }
     )
   }
-} 
+}, 'admin') // Only admins can create subscriptions 

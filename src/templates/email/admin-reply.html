@@ -1,0 +1,56 @@
+<div class="email-header welcome" style="background: #f0f9ff; border-bottom: 4px solid #667eea; padding: 30px; text-align: center; color: #333333;">
+  <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #667eea !important;">💬 Réponse de l'équipe Vistream</h1>
+  <p style="margin: 10px 0 0 0; font-size: 16px; color: #666666 !important;">Notre équipe vous répond</p>
+</div>
+
+<div class="email-content">
+  <h2>Bonjour {{contactName}} !</h2>
+  
+  <p>Merci pour votre message concernant "<strong>{{originalSubject}}</strong>". Voici notre réponse :</p>
+  
+  <div style="background-color: #f8f9fa; border-radius: 8px; padding: 25px; margin: 25px 0; border-left: 4px solid #667eea;">
+    <div style="color: #333333; font-size: 16px; line-height: 1.6;">
+      {{replyMessage}}
+    </div>
+  </div>
+  
+  {{originalMessageSection}}
+  
+  <div class="info-box" style="background-color: #f0f9ff; border-left: 4px solid #667eea; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+    <h3 style="margin: 0 0 10px 0; color: #667eea; font-size: 18px; font-weight: 600;">💡 Besoin d'aide supplémentaire ?</h3>
+    <p style="margin: 0; color: #666666;">N'hésitez pas à nous recontacter si vous avez d'autres questions. Notre équipe est là pour vous accompagner !</p>
+  </div>
+  
+  <div class="alert-box" style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
+    <h4 style="margin: 0 0 10px 0; color: #d97706; font-size: 16px; font-weight: 600;">🚀 Découvrez Vistream</h4>
+    <ul style="margin: 0; padding-left: 20px; color: #666666;">
+      <li style="margin-bottom: 5px;">Explorez nos <a href="{{featuresUrl}}" style="color: #d97706;">fonctionnalités IA</a></li>
+      <li style="margin-bottom: 5px;">Consultez nos <a href="{{pricingUrl}}" style="color: #d97706;">plans d'abonnement</a></li>
+      <li style="margin-bottom: 5px;">Visitez notre <a href="{{faqUrl}}" style="color: #d97706;">centre d'aide</a></li>
+      <li style="margin-bottom: 5px;">Accédez à votre <a href="{{dashboardUrl}}" style="color: #d97706;">tableau de bord</a></li>
+    </ul>
+  </div>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="{{contactUrl}}" class="btn" style="display: inline-block; padding: 15px 30px; background-color: #667eea; color: white !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; text-align: center;">
+      Nous contacter à nouveau
+    </a>
+  </div>
+  
+  <p>Merci de votre confiance et à bientôt sur Vistream !</p>
+  
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eeeeee;">
+    <p style="color: #666666; font-size: 14px; margin: 0; line-height: 1.5;">
+      Cordialement,<br>
+      <strong>L'équipe Vistream</strong><br>
+      <span style="color: #999999; font-size: 12px;">Plateforme de streaming vidéo IA</span>
+    </p>
+  </div>
+  
+  <div class="email-footer" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eeeeee; text-align: center;">
+    <p style="color: #999999; font-size: 12px; margin: 0; line-height: 1.4;">
+      Cet email a été envoyé par l'équipe Vistream en réponse à votre message<br>
+      Référence : #{{messageId}} • {{replyDate}}
+    </p>
+  </div>
+</div> 

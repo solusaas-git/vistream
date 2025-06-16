@@ -825,9 +825,9 @@ export default function Home() {
                 <cite className="text-sm sm:text-base text-muted-foreground font-medium">– Pierre M., EdTech Lyon</cite>
                 <div className="flex flex-col sm:flex-row justify-center items-center mt-4 sm:mt-6 lg:mt-8 gap-2 sm:gap-1">
                   <div className="flex items-center space-x-1">
-                    {[...Array(5)].map((_, i) => (
+                  {[...Array(5)].map((_, i) => (
                       <Star key={i} className="h-4 w-4 sm:h-5 sm:w-5 fill-current text-yellow-400" />
-                    ))}
+                  ))}
                   </div>
                   <span className="text-xs sm:text-sm lg:text-base font-medium text-muted-foreground sm:ml-2">4,9/5 sur SaaS Reviews</span>
                 </div>

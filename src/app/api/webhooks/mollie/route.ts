@@ -2,6 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import connectToDatabase from '@/lib/mongoose'
 import PaymentGateway from '@/models/PaymentGateway'
 import Payment from '@/models/Payment'
+import Subscription from '@/models/Subscription'
+
+// Function to normalize Mollie payment status to our payment schema
+function normalizePaymentStatus(mollieStatus: string): 'pending' | 'completed' | 'failed' | 'cancelled' | 'expired' | 'refunded' {
+  switch (mollieStatus) {
+    case 'open':
+    case 'pending':
+      return 'pending'
+    case 'paid':
+      return 'completed'
+    case 'failed':
+      return 'failed'
+    case 'canceled':
+      return 'cancelled'
+    case 'expired':
+      return 'expired'
+    case 'authorized':
+      return 'pending'
+    default:
+      return 'pending'
+  }
+}
 
 // Mollie webhook handler
 export async function POST(request: NextRequest) {
@@ -9,13 +31,26 @@ export async function POST(request: NextRequest) {
     const body = await request.text()
     const signature = request.headers.get('mollie-signature')
     
-    // Parse the webhook payload
+    // Parse the webhook payload - Mollie can send JSON or form-encoded data
     let webhookData
     try {
+      // Try JSON first
       webhookData = JSON.parse(body)
     } catch (error) {
-      console.error('Invalid JSON in Mollie webhook:', error)
-      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+      // If JSON parsing fails, try form-encoded format
+      try {
+        const urlParams = new URLSearchParams(body)
+        const id = urlParams.get('id')
+        if (id) {
+          webhookData = { id }
+          console.log('Parsed form-encoded Mollie webhook:', webhookData)
+        } else {
+          throw new Error('No ID found in form data')
+        }
+      } catch (formError) {
+        console.error('Invalid webhook format (neither JSON nor form-encoded):', error)
+        return NextResponse.json({ error: 'Invalid webhook format' }, { status: 400 })
+      }
     }
 
     // Validate required fields
@@ -112,49 +147,95 @@ export async function POST(request: NextRequest) {
     // 3. Send confirmation emails, trigger fulfillment, etc.
 
     // Find or create payment record in database
-    let payment = await Payment.findOne({ molliePaymentId: paymentData.id })
+    let payment = await Payment.findOne({ 
+      provider: 'mollie',
+      externalPaymentId: paymentData.id 
+    })
+    
+    const isNewPayment = !payment
     
     if (!payment) {
       // Create new payment record
       payment = new Payment({
-        molliePaymentId: paymentData.id,
+        provider: 'mollie',
+        externalPaymentId: paymentData.id,
         userId: paymentData.metadata?.userId,
         gatewayId: mollieGateway._id,
         amount: {
           value: parseFloat(paymentData.amount.value),
           currency: paymentData.amount.currency
         },
-        description: paymentData.description,
-        status: paymentData.status,
+        description: paymentData.description || `Payment ${paymentData.id}`,
+        status: normalizePaymentStatus(paymentData.status),
         method: paymentData.method,
         redirectUrl: paymentData.redirectUrl,
         webhookUrl: paymentData.webhookUrl,
         checkoutUrl: paymentData._links?.checkout?.href,
+        expiresAt: paymentData.expiresAt ? new Date(paymentData.expiresAt) : undefined,
         metadata: paymentData.metadata || {},
-        mollieCreatedAt: new Date(paymentData.createdAt),
-        mollieExpiresAt: paymentData.expiresAt ? new Date(paymentData.expiresAt) : undefined,
+        mollieData: {
+          paymentId: paymentData.id,
+          checkoutUrl: paymentData._links?.checkout?.href,
+          method: paymentData.method,
+          profileId: paymentData.profileId,
+          settlementAmount: paymentData.settlementAmount
+        },
         webhookProcessedAt: new Date(),
-        webhookAttempts: 1
+        webhookAttempts: 1,
+        // Add tracking fields
+        ipAddress: paymentData.metadata?.ipAddress,
+        userAgent: paymentData.metadata?.userAgent,
+        source: paymentData.metadata?.source || 'webhook'
       })
+      
+      console.log(`📝 Created new payment record for ${paymentData.id}`)
     } else {
       // Update existing payment record
-      payment.status = paymentData.status
+      const oldStatus = payment.status
+      const newStatus = normalizePaymentStatus(paymentData.status)
+      
+      payment.status = newStatus
       payment.method = paymentData.method
       payment.webhookProcessedAt = new Date()
-      payment.webhookAttempts += 1
+      payment.webhookAttempts = (payment.webhookAttempts || 0) + 1
+      payment.lastSyncAt = new Date()
       
       // Update paid timestamp if payment was successful
-      if (paymentData.status === 'paid' && !payment.molliePaidAt) {
-        payment.molliePaidAt = new Date()
+      if (paymentData.status === 'paid' && !payment.paidAt) {
+        payment.paidAt = new Date()
+      }
+      
+      // Log status changes
+      if (oldStatus !== newStatus) {
+        console.log(`🔄 Payment ${paymentData.id} status changed: ${oldStatus} → ${newStatus}`)
+        
+        // Add to status history
+        if (!payment.statusHistory || payment.statusHistory.length === 0) {
+          // Initialize if needed - Mongoose will handle the DocumentArray
+        }
+        payment.statusHistory.push({
+          status: newStatus,
+          timestamp: new Date(),
+          source: 'webhook'
+        })
       }
     }
 
     await payment.save()
+    
+    // Log payment processing
+    console.log(`💾 Payment ${paymentData.id} saved to database:`, {
+      id: payment._id,
+      status: payment.status,
+      amount: payment.amount,
+      isNew: isNewPayment,
+      webhookAttempts: payment.webhookAttempts
+    })
 
     // Handle status-specific logic
     switch (paymentData.status) {
       case 'paid':
-        console.log(`Payment ${paymentData.id} was successful`)
+        console.log(`💳 Payment ${paymentData.id} was successful`)
         
         if (!payment.isProcessed) {
           // Mark as processed to avoid duplicate processing
@@ -162,20 +243,95 @@ export async function POST(request: NextRequest) {
           payment.processedAt = new Date()
           await payment.save()
           
-          // TODO: Add your business logic here:
-          // - Update subscription status
-          // - Send confirmation email
-          // - Trigger fulfillment
-          // - Update user account
+          // Handle subscription activation or upgrade
+          if (payment.userId) {
+            // Check if this is an upgrade or renewal payment
+            if (payment.metadata?.type === 'subscription_upgrade' || payment.metadata?.type === 'subscription_renewal') {
+              const isRenewal = payment.metadata?.type === 'subscription_renewal'
+              console.log(`🔄 Processing subscription ${isRenewal ? 'renewal' : 'upgrade'}`)
+              console.log('Upgrade metadata:', {
+                currentSubscriptionId: payment.metadata.currentSubscriptionId,
+                newPlanId: payment.metadata.newPlanId,
+                currentPlan: payment.metadata.currentPlan,
+                newPlan: payment.metadata.newPlan
+              })
+              
+              // Get current subscription and new plan
+              const currentSubscription = await Subscription.findById(payment.metadata.currentSubscriptionId)
+              const Plan = (await import('@/models/Plan')).default
+              const newPlan = await Plan.findById(payment.metadata.newPlanId)
+              
+              console.log('Found subscription:', currentSubscription ? 'Yes' : 'No')
+              console.log('Found new plan:', newPlan ? 'Yes' : 'No')
+              
+              if (currentSubscription && newPlan) {
+                // Update subscription with new plan details
+                currentSubscription.planId = newPlan._id.toString()
+                currentSubscription.planName = newPlan.name
+                currentSubscription.planPrice = newPlan.price
+                currentSubscription.planPeriod = newPlan.period
+                
+                // Calculate new end date based on renewal vs upgrade
+                const currentEndDate = currentSubscription.endDate || new Date()
+                const now = new Date()
+                
+                let newEndDate
+                if (isRenewal && currentEndDate > now) {
+                  // For renewals, extend from current end date if not expired
+                  newEndDate = new Date(currentEndDate)
+                } else {
+                  // For upgrades or expired renewals, start from now
+                  newEndDate = new Date(now)
+                }
+                
+                // Add the period duration
+                if (newPlan.period.includes('12') || newPlan.period.includes('année') || newPlan.period.includes('an')) {
+                  newEndDate.setFullYear(newEndDate.getFullYear() + 1)
+                } else if (newPlan.period.includes('24')) {
+                  newEndDate.setFullYear(newEndDate.getFullYear() + 2)
+                } else {
+                  // Default to monthly
+                  newEndDate.setMonth(newEndDate.getMonth() + 1)
+                }
+                
+                currentSubscription.endDate = newEndDate
+                currentSubscription.status = 'active' // Ensure subscription is active
+                await currentSubscription.save()
+                
+                console.log(`✅ Subscription ${isRenewal ? 'renewed' : 'upgraded'}:`, {
+                  subscriptionId: currentSubscription._id,
+                  oldPlan: payment.metadata.currentPlan,
+                  newPlan: newPlan.name,
+                  newEndDate: newEndDate.toISOString(),
+                  isRenewal
+                })
+              }
+            } else {
+              // Regular subscription activation
+              const subscription = await Subscription.findOne({ 
+                userId: payment.userId,
+                status: 'pending'
+              }).sort({ createdAt: -1 }) // Get the most recent pending subscription
+
+              if (subscription) {
+                subscription.status = 'active'
+                subscription.startDate = new Date()
+                await subscription.save()
+                console.log('✅ Subscription activated:', subscription._id)
+              } else {
+                console.log('ℹ️ No pending subscription found for user:', payment.userId)
+              }
+            }
+          }
           
-          console.log(`Payment ${paymentData.id} processed successfully`)
+          console.log(`✅ Payment ${paymentData.id} processed successfully`)
         }
         break
       
       case 'failed':
       case 'canceled':
       case 'expired':
-        console.log(`Payment ${paymentData.id} failed with status: ${paymentData.status}`)
+        console.log(`❌ Payment ${paymentData.id} failed with status: ${paymentData.status}`)
         
         // TODO: Add failure handling:
         // - Send failure notification
@@ -184,7 +340,7 @@ export async function POST(request: NextRequest) {
         break
       
       case 'pending':
-        console.log(`Payment ${paymentData.id} is pending`)
+        console.log(`⏳ Payment ${paymentData.id} is pending`)
         // Payment is still being processed
         break
       

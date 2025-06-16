@@ -3,6 +3,8 @@ import { z } from 'zod'
 import connectToDatabase from '@/lib/mongoose'
 import Contact from '@/models/Contact'
 import { rateLimit, rateLimitConfigs, createRateLimitResponse } from '@/lib/rate-limit'
+import { getClientIP, isBotIP } from '@/lib/ip-utils'
+import { sendContactConfirmationEmail } from '@/lib/email'
 
 // Validation schema for contact form
 const contactSchema = z.object({
@@ -41,6 +43,7 @@ export async function POST(request: NextRequest) {
     
     // Check for potential spam (basic checks)
     const isSpam = detectSpam(validatedData, clientIP, userAgent)
+    const isBot = isBotIP(clientIP, userAgent)
     
     // Create new contact message
     const newContact = new Contact({
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
       source: 'landing_page',
       priority: determinePriority(validatedData),
       tags: generateTags(validatedData),
-      status: isSpam ? 'closed' : 'new' // Auto-close spam messages
+      status: (isSpam || isBot) ? 'closed' : 'new' // Auto-close spam messages and bot submissions
     })
     
     // Save to database
@@ -63,11 +66,33 @@ export async function POST(request: NextRequest) {
       id: newContact._id, 
       email: newContact.email, 
       subject: newContact.subject,
-      isSpam 
+      isSpam,
+      isBot 
     })
 
+    // Send confirmation email to user (only if not spam/bot)
+    if (!isSpam && !isBot) {
+      try {
+        const emailSent = await sendContactConfirmationEmail(
+          newContact.email,
+          newContact.name,
+          newContact.subject,
+          newContact.message,
+          newContact._id.toString()
+        )
+        
+        if (emailSent) {
+          console.log('Confirmation email sent to:', newContact.email)
+        } else {
+          console.warn('Failed to send confirmation email to:', newContact.email)
+        }
+      } catch (error) {
+        console.error('Error sending confirmation email:', error)
+        // Don't fail the request if email fails
+      }
+    }
+
     // TODO: Send notification email to admin team
-    // TODO: Send auto-reply email to user
     
     return NextResponse.json({
       success: true,
@@ -101,26 +126,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper function to get client IP
-function getClientIP(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  const realIP = request.headers.get('x-real-ip')
-  const cfConnectingIP = request.headers.get('cf-connecting-ip')
-  
-  if (forwarded) {
-    return forwarded.split(',')[0].trim()
-  }
-  
-  if (realIP) {
-    return realIP
-  }
-  
-  if (cfConnectingIP) {
-    return cfConnectingIP
-  }
-  
-  return 'unknown'
-}
+
 
 // Basic spam detection
 function detectSpam(data: any, ip: string, userAgent: string): boolean {

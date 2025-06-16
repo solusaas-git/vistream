@@ -17,6 +17,20 @@ const nextConfig = {
     domains: ['vistream.net'],
   },
   reactStrictMode: true,
+  // Headers for Mollie.js support and IP forwarding
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "script-src 'self' 'unsafe-inline' 'unsafe-eval' js.mollie.com js.stripe.com; style-src 'self' 'unsafe-inline'; connect-src 'self' api.mollie.com js.mollie.com api.stripe.com; frame-src 'self' js.mollie.com js.stripe.com;"
+          }
+        ]
+      }
+    ]
+  },
   // Webpack optimization to prevent cache issues
   webpack: (config, { dev, isServer }) => {
     if (dev) {
@@ -27,6 +41,14 @@ const nextConfig = {
     }
     return config
   },
+  // Trust proxy for IP forwarding (important for production)
+  async rewrites() {
+    return []
+  },
+  // Environment-specific configurations
+  env: {
+    TRUST_PROXY: process.env.TRUST_PROXY || 'false',
+  }
 }
 
 module.exports = nextConfig 

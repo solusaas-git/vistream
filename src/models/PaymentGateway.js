@@ -31,6 +31,16 @@ const paymentGatewaySchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  priority: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  isRecommended: {
+    type: Boolean,
+    default: false
+  },
   configuration: {
     // Mollie configuration
     mollieApiKey: {
@@ -159,6 +169,9 @@ paymentGatewaySchema.index({ provider: 1 })
 paymentGatewaySchema.index({ isActive: 1 })
 paymentGatewaySchema.index({ isDefault: 1 })
 paymentGatewaySchema.index({ status: 1 })
+paymentGatewaySchema.index({ priority: -1 }) // Higher priority first
+paymentGatewaySchema.index({ isActive: 1, priority: -1 }) // Compound index for active gateways ordered by priority
+paymentGatewaySchema.index({ isRecommended: 1 }) // Index for recommended gateways
 
 // Ensure only one default gateway
 paymentGatewaySchema.pre('save', async function(next) {

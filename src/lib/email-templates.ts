@@ -208,6 +208,85 @@ export function generateOTPEmail(data: {
   }
 }
 
+// Template de confirmation de contact
+export function generateContactConfirmationEmail(data: {
+  name: string
+  email: string
+  subject: string
+  message: string
+  messageId: string
+  date: string
+}): EmailTemplate {
+  const templateData: TemplateData = {
+    title: 'Confirmation de votre message',
+    name: data.name,
+    subject: data.subject,
+    message: data.message,
+    messageId: data.messageId,
+    date: data.date,
+    faqUrl: `${process.env.APP_URL || 'https://vistream.com'}/faq`,
+    featuresUrl: `${process.env.APP_URL || 'https://vistream.com'}/features`,
+    pricingUrl: `${process.env.APP_URL || 'https://vistream.com'}/pricing`,
+    dashboardUrl: `${process.env.APP_URL || 'https://vistream.com'}/dashboard`
+  }
+  
+  const template = readTemplate('contact-confirmation')
+  const htmlWithData = replaceVariables(template, templateData)
+  const finalHtml = applyInlineStyles(htmlWithData)
+  
+  return {
+    subject: 'Confirmation de votre message - Vistream',
+    html: finalHtml
+  }
+}
+
+// Template de réponse admin
+export function generateAdminReplyEmail(data: {
+  contactName: string
+  originalSubject: string
+  replyMessage: string
+  originalMessage?: string
+  messageId: string
+  replyDate: string
+}): EmailTemplate {
+  // Generate original message section if provided
+  let originalMessageSection = ''
+  if (data.originalMessage) {
+    originalMessageSection = `
+      <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 25px 0; border-left: 4px solid #e5e7eb;">
+        <h4 style="margin: 0 0 10px 0; color: #666666; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📝 Votre message original :</h4>
+        <div style="color: #666666; font-size: 14px; line-height: 1.5; font-style: italic;">
+          ${data.originalMessage.replace(/\n/g, '<br>')}
+        </div>
+      </div>
+    `
+  }
+
+  const templateData: TemplateData = {
+    title: 'Réponse de l\'équipe Vistream',
+    contactName: data.contactName,
+    originalSubject: data.originalSubject,
+    replyMessage: data.replyMessage.replace(/\n/g, '<br>'),
+    originalMessageSection,
+    messageId: data.messageId,
+    replyDate: data.replyDate,
+    featuresUrl: `${process.env.APP_URL || 'https://vistream.com'}/features`,
+    pricingUrl: `${process.env.APP_URL || 'https://vistream.com'}/pricing`,
+    faqUrl: `${process.env.APP_URL || 'https://vistream.com'}/faq`,
+    contactUrl: `${process.env.APP_URL || 'https://vistream.com'}/contact`,
+    dashboardUrl: `${process.env.APP_URL || 'https://vistream.com'}/dashboard`
+  }
+  
+  const template = readTemplate('admin-reply')
+  const htmlWithData = replaceVariables(template, templateData)
+  const finalHtml = applyInlineStyles(htmlWithData)
+  
+  return {
+    subject: `Re: ${data.originalSubject}`,
+    html: finalHtml
+  }
+}
+
 // Template de test SMTP
 export function generateSmtpTestEmail(data: {
   smtpName: string
@@ -273,7 +352,7 @@ export function clearTemplateCache(): void {
 
 // Fonction pour précharger tous les templates
 export function preloadTemplates(): void {
-  const templates = ['welcome', 'password-reset', 'otp-verification', 'smtp-test']
+  const templates = ['welcome', 'password-reset', 'otp-verification', 'smtp-test', 'contact-confirmation', 'admin-reply']
   
   templates.forEach(template => {
     try {

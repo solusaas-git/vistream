@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { RoleGuard, useUserRole } from '@/components/ui/role-guard'
 import { 
   Users, 
   Plus, 
@@ -111,6 +112,7 @@ type EditUserFormValues = z.infer<typeof editUserSchema>
 export default function AdminUsersPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user: currentUser, isAdmin } = useUserRole()
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'users')
   const [users, setUsers] = useState<User[]>([])
   const [customers, setCustomers] = useState<User[]>([])
@@ -175,42 +177,45 @@ export default function AdminUsersPage() {
     router.push(`?${params.toString()}`, { scroll: false })
   }
 
-  const fetchUsers = useCallback(async (page = 1, role: 'user' | 'customer' | 'admin' = 'user') => {
+  const fetchUsers = useCallback(async (role: string, page: number = 1) => {
     try {
       setLoading(true)
-      const currentPagination = role === 'user' ? usersPagination : role === 'customer' ? customersPagination : adminsPagination
       const params = new URLSearchParams({
+        role,
         page: page.toString(),
-        limit: currentPagination.limit.toString(),
-        role: role,
+        limit: '10'
       })
-
-      if (searchTerm) params.append('search', searchTerm)
-      if (statusFilter && statusFilter !== 'all') params.append('isActive', statusFilter)
+      
+      if (searchTerm) {
+        params.append('search', searchTerm)
+      }
 
       const response = await fetch(`/api/admin/users?${params}`)
       const data = await response.json()
 
       if (data.success) {
-        if (role === 'user') {
-          setUsers(data.data.users)
-          setUsersPagination(data.data.pagination)
+        const { users, pagination } = data.data
+        
+        if (role === 'admin') {
+          setAdmins(users)
+          setAdminsPagination(pagination)
+        } else if (role === 'user') {
+          setUsers(users)
+          setUsersPagination(pagination)
         } else if (role === 'customer') {
-          setCustomers(data.data.users)
-          setCustomersPagination(data.data.pagination)
-        } else {
-          setAdmins(data.data.users)
-          setAdminsPagination(data.data.pagination)
+          setCustomers(users)
+          setCustomersPagination(pagination)
         }
       } else {
-        console.error('Error fetching users:', data.error)
+        console.error('Erreur lors du chargement des utilisateurs')
       }
     } catch (error) {
       console.error('Error fetching users:', error)
+      console.error('Erreur lors du chargement des utilisateurs')
     } finally {
       setLoading(false)
     }
-  }, [searchTerm, statusFilter, usersPagination.limit, customersPagination.limit, adminsPagination.limit])
+  }, [searchTerm])
 
   // Fetch counts for all tabs on initial load
   const fetchAllCounts = useCallback(async () => {
@@ -246,14 +251,8 @@ export default function AdminUsersPage() {
     fetchAllCounts()
     
     // Fetch data for the active tab
-    if (activeTab === 'users') {
-      fetchUsers(1, 'user')
-    } else if (activeTab === 'customers') {
-      fetchUsers(1, 'customer')
-    } else {
-      fetchUsers(1, 'admin')
-    }
-  }, [activeTab, searchTerm, statusFilter, fetchAllCounts])
+    fetchUsers(activeTab)
+  }, [activeTab, searchTerm, fetchAllCounts, fetchUsers])
 
   const handleCreateUser = async (data: CreateUserFormValues) => {
     try {
@@ -275,11 +274,11 @@ export default function AdminUsersPage() {
         fetchAllCounts()
         // Refresh the appropriate tab
         if (data.role === 'user') {
-          fetchUsers(usersPagination.page, 'user')
+          fetchUsers(activeTab, usersPagination.page)
         } else if (data.role === 'customer') {
-          fetchUsers(customersPagination.page, 'customer')
+          fetchUsers(activeTab, customersPagination.page)
         } else {
-          fetchUsers(adminsPagination.page, 'admin')
+          fetchUsers(activeTab, adminsPagination.page)
         }
         alert('Utilisateur créé avec succès!')
       } else {
@@ -321,13 +320,7 @@ export default function AdminUsersPage() {
         // Refresh counts for all tabs
         fetchAllCounts()
         // Refresh the appropriate tab
-        if (activeTab === 'users') {
-          fetchUsers(usersPagination.page, 'user')
-        } else if (activeTab === 'customers') {
-          fetchUsers(customersPagination.page, 'customer')
-        } else {
-          fetchUsers(adminsPagination.page, 'admin')
-        }
+        fetchUsers(activeTab, usersPagination.page)
         alert('Utilisateur modifié avec succès!')
       } else {
         alert(result.error || 'Erreur lors de la modification de l\'utilisateur')
@@ -356,13 +349,7 @@ export default function AdminUsersPage() {
         // Refresh counts for all tabs
         fetchAllCounts()
         // Refresh the appropriate tab
-        if (activeTab === 'users') {
-          fetchUsers(usersPagination.page, 'user')
-        } else if (activeTab === 'customers') {
-          fetchUsers(customersPagination.page, 'customer')
-        } else {
-          fetchUsers(adminsPagination.page, 'admin')
-        }
+        fetchUsers(activeTab, usersPagination.page)
         alert('Utilisateur supprimé avec succès!')
       } else {
         alert(result.error || 'Erreur lors de la suppression de l\'utilisateur')
@@ -589,7 +576,7 @@ export default function AdminUsersPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchUsers(pagination.page - 1, role)}
+            onClick={() => fetchUsers(role, pagination.page - 1)}
             disabled={!pagination.hasPrev}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -598,7 +585,7 @@ export default function AdminUsersPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchUsers(pagination.page + 1, role)}
+            onClick={() => fetchUsers(role, pagination.page + 1)}
             disabled={!pagination.hasNext}
           >
             Suivant
@@ -610,661 +597,670 @@ export default function AdminUsersPage() {
   )
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Gestion des utilisateurs</h1>
-          <p className="text-muted-foreground">
-            Gérez les comptes utilisateurs et clients avec leurs abonnements
-          </p>
-        </div>
-        
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nouvel utilisateur
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Créer un nouvel utilisateur</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleCreateUser)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="firstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Prénom</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Jean" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nom</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Dupont" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+    <RoleGuard allowedRoles={['admin', 'user']}>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">
+              {isAdmin ? 'Gestion des utilisateurs' : 'Mes clients'}
+            </h1>
+            <p className="text-muted-foreground">
+              {isAdmin 
+                ? 'Gérez les comptes utilisateurs et clients avec leurs abonnements'
+                : 'Consultez vos clients affiliés et leurs abonnements'
+              }
+            </p>
+          </div>
+          
+          {isAdmin && (
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nouvel utilisateur
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Créer un nouvel utilisateur</DialogTitle>
+                </DialogHeader>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleCreateUser)} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Prénom</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Jean" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nom</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Dupont" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="jean.dupont@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="phonePrefix"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Préfixe</FormLabel>
-                        <FormControl>
-                          <Input placeholder="+33" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="col-span-2">
                     <FormField
                       control={form.control}
-                      name="phoneNumber"
+                      name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Numéro de téléphone</FormLabel>
+                          <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input placeholder="612345678" {...field} />
+                            <Input type="email" placeholder="jean.dupont@example.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="phonePrefix"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Préfixe</FormLabel>
+                            <FormControl>
+                              <Input placeholder="+33" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <div className="col-span-2">
+                        <FormField
+                          control={form.control}
+                          name="phoneNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Numéro de téléphone</FormLabel>
+                              <FormControl>
+                                <Input placeholder="612345678" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mot de passe</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="••••••••" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Rôle</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Sélectionner un rôle" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="customer">Client</SelectItem>
+                              <SelectItem value="user">Utilisateur</SelectItem>
+                              <SelectItem value="admin">Administrateur</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="isVerified"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                              <FormLabel className="text-base">Compte vérifié</FormLabel>
+                              <div className="text-sm text-muted-foreground">
+                                L'email est vérifié
+                              </div>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="isActive"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                              <FormLabel className="text-base">Compte actif</FormLabel>
+                              <div className="text-sm text-muted-foreground">
+                                L'utilisateur peut se connecter
+                              </div>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsCreateDialogOpen(false)}
+                      >
+                        Annuler
+                      </Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Création...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Créer l'utilisateur
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+
+        {/* Filters */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Rechercher par nom, email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-48">
+                  <SelectValue placeholder="Filtrer par statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="true">Actif</SelectItem>
+                  <SelectItem value="false">Inactif</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tabs for Users, Customers, and Admins */}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Utilisateurs ({usersPagination.total})
+            </TabsTrigger>
+            <TabsTrigger value="customers" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Clients ({customersPagination.total})
+            </TabsTrigger>
+            <TabsTrigger value="admins" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Administrateurs ({adminsPagination.total})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="users">
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Utilisateurs avec codes d'affiliation
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : (
+                  renderUserTable(users, usersPagination, 'user')
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="customers">
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Clients et abonnements
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : (
+                  renderUserTable(customers, customersPagination, 'customer')
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="admins">
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Administrateurs
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : (
+                  renderUserTable(admins, adminsPagination, 'admin')
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* User Detail Dialog */}
+        <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Détails de l'utilisateur</DialogTitle>
+            </DialogHeader>
+            {selectedUser && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Nom complet</Label>
+                    <p className="text-sm text-gray-900 mt-1">
+                      {selectedUser.firstName} {selectedUser.lastName}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Email</Label>
+                    <p className="text-sm text-gray-900 mt-1">{selectedUser.email}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Téléphone</Label>
+                    <p className="text-sm text-gray-900 mt-1">
+                      {selectedUser.phonePrefix} {selectedUser.phoneNumber}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Rôle</Label>
+                    <div className="mt-1">
+                      <Badge className={getRoleBadgeColor(selectedUser.role)}>
+                        <div className="flex items-center gap-1">
+                          {getRoleIcon(selectedUser.role)}
+                          {selectedUser.role}
+                        </div>
+                      </Badge>
+                    </div>
+                  </div>
+                  {selectedUser.role === 'user' && (
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Code d'affiliation</Label>
+                      <div className="mt-1">
+                        {selectedUser.affiliationCode ? (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                            <Hash className="h-3 w-3 mr-1" />
+                            {selectedUser.affiliationCode}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Aucun code généré</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Statut du compte</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      {selectedUser.isActive ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      )}
+                      <span className="text-sm">
+                        {selectedUser.isActive ? 'Actif' : 'Inactif'}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Vérification</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      {selectedUser.isVerified ? (
+                        <CheckCircle className="h-4 w-4 text-blue-500" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-orange-500" />
+                      )}
+                      <span className="text-sm">
+                        {selectedUser.isVerified ? 'Vérifié' : 'Non vérifié'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subscription Details */}
+                {selectedUser.subscription && (
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-medium mb-4">Abonnement</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">Plan</Label>
+                        <div className="mt-1">
+                          {getSubscriptionBadge(selectedUser.subscription)}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">Prix</Label>
+                        <p className="text-sm text-gray-900 mt-1">
+                          {selectedUser.subscription.planPrice}/{selectedUser.subscription.planPeriod}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">Date de début</Label>
+                        <p className="text-sm text-gray-900 mt-1">
+                          {formatDate(selectedUser.subscription.startDate)}
+                        </p>
+                      </div>
+                      {selectedUser.subscription.endDate && (
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">Date de fin</Label>
+                          <p className="text-sm text-gray-900 mt-1">
+                            {formatDate(selectedUser.subscription.endDate)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t pt-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Créé le</Label>
+                      <p className="text-sm text-gray-900 mt-1">
+                        {formatDate(selectedUser.createdAt)}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Modifié le</Label>
+                      <p className="text-sm text-gray-900 mt-1">
+                        {formatDate(selectedUser.updatedAt)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit User Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Modifier l'utilisateur</DialogTitle>
+            </DialogHeader>
+            {selectedUser && (
+              <Form {...editForm}>
+                <form onSubmit={editForm.handleSubmit(handleEditUser)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={editForm.control}
+                      name="firstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Prénom</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Jean" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={editForm.control}
+                      name="lastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nom</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Dupont" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                </div>
 
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mot de passe</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Rôle</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner un rôle" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="customer">Client</SelectItem>
-                          <SelectItem value="user">Utilisateur</SelectItem>
-                          <SelectItem value="admin">Administrateur</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
                   <FormField
-                    control={form.control}
-                    name="isVerified"
+                    control={editForm.control}
+                    name="email"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Compte vérifié</FormLabel>
-                          <div className="text-sm text-muted-foreground">
-                            L'email est vérifié
-                          </div>
-                        </div>
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <Input type="email" placeholder="jean.dupont@example.com" {...field} />
                         </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="isActive"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Compte actif</FormLabel>
-                          <div className="text-sm text-muted-foreground">
-                            L'utilisateur peut se connecter
-                          </div>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsCreateDialogOpen(false)}
-                  >
-                    Annuler
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Création...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Créer l'utilisateur
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Filters */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Rechercher par nom, email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filtrer par statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="true">Actif</SelectItem>
-                <SelectItem value="false">Inactif</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabs for Users, Customers, and Admins */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Utilisateurs ({usersPagination.total})
-          </TabsTrigger>
-          <TabsTrigger value="customers" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Clients ({customersPagination.total})
-          </TabsTrigger>
-          <TabsTrigger value="admins" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Administrateurs ({adminsPagination.total})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Utilisateurs avec codes d'affiliation
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-              ) : (
-                renderUserTable(users, usersPagination, 'user')
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="customers">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Clients et abonnements
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-              ) : (
-                renderUserTable(customers, customersPagination, 'customer')
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="admins">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Administrateurs
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-              ) : (
-                renderUserTable(admins, adminsPagination, 'admin')
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* User Detail Dialog */}
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Détails de l'utilisateur</DialogTitle>
-          </DialogHeader>
-          {selectedUser && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Nom complet</Label>
-                  <p className="text-sm text-gray-900 mt-1">
-                    {selectedUser.firstName} {selectedUser.lastName}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Email</Label>
-                  <p className="text-sm text-gray-900 mt-1">{selectedUser.email}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Téléphone</Label>
-                  <p className="text-sm text-gray-900 mt-1">
-                    {selectedUser.phonePrefix} {selectedUser.phoneNumber}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Rôle</Label>
-                  <div className="mt-1">
-                    <Badge className={getRoleBadgeColor(selectedUser.role)}>
-                      <div className="flex items-center gap-1">
-                        {getRoleIcon(selectedUser.role)}
-                        {selectedUser.role}
-                      </div>
-                    </Badge>
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={editForm.control}
+                      name="phonePrefix"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Préfixe</FormLabel>
+                          <FormControl>
+                            <Input placeholder="+33" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="col-span-2">
+                      <FormField
+                        control={editForm.control}
+                        name="phoneNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Numéro de téléphone</FormLabel>
+                            <FormControl>
+                              <Input placeholder="612345678" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
-                </div>
-                {selectedUser.role === 'user' && (
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Code d'affiliation</Label>
-                    <div className="mt-1">
-                      {selectedUser.affiliationCode ? (
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700">
+
+                  {selectedUser.role === 'user' && selectedUser.affiliationCode && (
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <Label className="text-sm font-medium text-blue-800">Code d'affiliation</Label>
+                      <div className="mt-1">
+                        <Badge variant="outline" className="bg-blue-100 text-blue-700">
                           <Hash className="h-3 w-3 mr-1" />
                           {selectedUser.affiliationCode}
                         </Badge>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">Aucun code généré</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Statut du compte</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    {selectedUser.isActive ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-red-500" />
-                    )}
-                    <span className="text-sm">
-                      {selectedUser.isActive ? 'Actif' : 'Inactif'}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Vérification</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    {selectedUser.isVerified ? (
-                      <CheckCircle className="h-4 w-4 text-blue-500" />
-                    ) : (
-                      <AlertTriangle className="h-4 w-4 text-orange-500" />
-                    )}
-                    <span className="text-sm">
-                      {selectedUser.isVerified ? 'Vérifié' : 'Non vérifié'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Subscription Details */}
-              {selectedUser.subscription && (
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-medium mb-4">Abonnement</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Plan</Label>
-                      <div className="mt-1">
-                        {getSubscriptionBadge(selectedUser.subscription)}
                       </div>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Prix</Label>
-                      <p className="text-sm text-gray-900 mt-1">
-                        {selectedUser.subscription.planPrice}/{selectedUser.subscription.planPeriod}
+                      <p className="text-xs text-blue-600 mt-1">
+                        Le code d'affiliation est généré automatiquement et ne peut pas être modifié
                       </p>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700">Date de début</Label>
-                      <p className="text-sm text-gray-900 mt-1">
-                        {formatDate(selectedUser.subscription.startDate)}
-                      </p>
-                    </div>
-                    {selectedUser.subscription.endDate && (
-                      <div>
-                        <Label className="text-sm font-medium text-gray-700">Date de fin</Label>
-                        <p className="text-sm text-gray-900 mt-1">
-                          {formatDate(selectedUser.subscription.endDate)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="border-t pt-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Créé le</Label>
-                    <p className="text-sm text-gray-900 mt-1">
-                      {formatDate(selectedUser.createdAt)}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">Modifié le</Label>
-                    <p className="text-sm text-gray-900 mt-1">
-                      {formatDate(selectedUser.updatedAt)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Modifier l'utilisateur</DialogTitle>
-          </DialogHeader>
-          {selectedUser && (
-            <Form {...editForm}>
-              <form onSubmit={editForm.handleSubmit(handleEditUser)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={editForm.control}
-                    name="firstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Prénom</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Jean" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editForm.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nom</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Dupont" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={editForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="jean.dupont@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
                   )}
-                />
 
-                <div className="grid grid-cols-3 gap-4">
                   <FormField
                     control={editForm.control}
-                    name="phonePrefix"
+                    name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Préfixe</FormLabel>
+                        <FormLabel>Nouveau mot de passe (optionnel)</FormLabel>
                         <FormControl>
-                          <Input placeholder="+33" {...field} />
+                          <Input type="password" placeholder="Laisser vide pour ne pas changer" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
-                  <div className="col-span-2">
+
+                  <FormField
+                    control={editForm.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Rôle</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sélectionner un rôle" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="customer">Client</SelectItem>
+                            <SelectItem value="user">Utilisateur</SelectItem>
+                            <SelectItem value="admin">Administrateur</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={editForm.control}
-                      name="phoneNumber"
+                      name="isVerified"
                       render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Numéro de téléphone</FormLabel>
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Compte vérifié</FormLabel>
+                            <div className="text-sm text-muted-foreground">
+                              L'email est vérifié
+                            </div>
+                          </div>
                           <FormControl>
-                            <Input placeholder="612345678" {...field} />
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
                           </FormControl>
-                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editForm.control}
+                      name="isActive"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Compte actif</FormLabel>
+                            <div className="text-sm text-muted-foreground">
+                              L'utilisateur peut se connecter
+                            </div>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
                         </FormItem>
                       )}
                     />
                   </div>
-                </div>
 
-                {selectedUser.role === 'user' && selectedUser.affiliationCode && (
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <Label className="text-sm font-medium text-blue-800">Code d'affiliation</Label>
-                    <div className="mt-1">
-                      <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                        <Hash className="h-3 w-3 mr-1" />
-                        {selectedUser.affiliationCode}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Le code d'affiliation est généré automatiquement et ne peut pas être modifié
-                    </p>
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsEditDialogOpen(false)}
+                    >
+                      Annuler
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Modification...
+                        </>
+                      ) : (
+                        <>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Modifier l'utilisateur
+                        </>
+                      )}
+                    </Button>
                   </div>
-                )}
-
-                <FormField
-                  control={editForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nouveau mot de passe (optionnel)</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="Laisser vide pour ne pas changer" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={editForm.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Rôle</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner un rôle" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="customer">Client</SelectItem>
-                          <SelectItem value="user">Utilisateur</SelectItem>
-                          <SelectItem value="admin">Administrateur</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={editForm.control}
-                    name="isVerified"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Compte vérifié</FormLabel>
-                          <div className="text-sm text-muted-foreground">
-                            L'email est vérifié
-                          </div>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="isActive"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Compte actif</FormLabel>
-                          <div className="text-sm text-muted-foreground">
-                            L'utilisateur peut se connecter
-                          </div>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsEditDialogOpen(false)}
-                  >
-                    Annuler
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Modification...
-                      </>
-                    ) : (
-                      <>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Modifier l'utilisateur
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+                </form>
+              </Form>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    </RoleGuard>
   )
 } 

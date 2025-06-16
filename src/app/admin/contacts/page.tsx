@@ -40,7 +40,12 @@ import {
   Send,
   Archive,
   Star,
-  AlertCircle
+  AlertCircle,
+  Flag,
+  Zap,
+  Globe,
+  Monitor,
+  FileText
 } from 'lucide-react'
 
 interface Contact {
@@ -97,10 +102,17 @@ const updateContactSchema = z.object({
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
   assignedTo: z.string().optional(),
   tags: z.string().optional(),
-  note: z.string().min(1, "La note ne peut pas être vide.").max(1000).optional(),
+  note: z.string().max(1000).optional(),
+})
+
+const replySchema = z.object({
+  subject: z.string().min(1, "L'objet est requis"),
+  message: z.string().min(1, "Le message est requis"),
+  includeOriginal: z.boolean().optional(),
 })
 
 type UpdateContactFormValues = z.infer<typeof updateContactSchema>
+type ReplyFormValues = z.infer<typeof replySchema>
 
 export default function AdminContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -125,7 +137,9 @@ export default function AdminContactsPage() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSendingReply, setIsSendingReply] = useState(false)
   const [adminUsers, setAdminUsers] = useState<Array<{_id: string, firstName: string, lastName: string}>>([])
 
   const form = useForm<UpdateContactFormValues>({
@@ -136,6 +150,15 @@ export default function AdminContactsPage() {
       assignedTo: '',
       tags: '',
       note: '',
+    },
+  })
+
+  const replyForm = useForm<ReplyFormValues>({
+    resolver: zodResolver(replySchema),
+    defaultValues: {
+      subject: '',
+      message: '',
+      includeOriginal: false,
     },
   })
 
@@ -183,7 +206,7 @@ export default function AdminContactsPage() {
   useEffect(() => {
     fetchContacts(1)
     fetchAdminUsers()
-  }, [searchTerm, statusFilter, priorityFilter])
+  }, [fetchContacts, fetchAdminUsers])
 
   const handleUpdateContact = async (data: UpdateContactFormValues) => {
     if (!selectedContact) return
@@ -195,9 +218,12 @@ export default function AdminContactsPage() {
       
       if (data.status) updateData.status = data.status
       if (data.priority) updateData.priority = data.priority
-      if (data.assignedTo && data.assignedTo !== '') updateData.assignedTo = data.assignedTo
+      if (data.assignedTo && data.assignedTo !== 'unassigned') updateData.assignedTo = data.assignedTo
       if (data.tags) updateData.tags = data.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
-      if (data.note) updateData.note = { content: data.note }
+      if (data.note && data.note.trim()) updateData.note = { content: data.note.trim() }
+      
+      console.log('Frontend: Sending update data:', updateData)
+      console.log('Frontend: Selected contact ID:', selectedContact._id)
       
       const response = await fetch(`/api/admin/contacts/${selectedContact._id}`, {
         method: 'PUT',
@@ -207,7 +233,9 @@ export default function AdminContactsPage() {
         body: JSON.stringify(updateData),
       })
 
+      console.log('Frontend: Response status:', response.status)
       const result = await response.json()
+      console.log('Frontend: Response data:', result)
 
       if (result.success) {
         setIsEditDialogOpen(false)
@@ -215,6 +243,7 @@ export default function AdminContactsPage() {
         fetchContacts(pagination.page)
         alert('Message mis à jour avec succès!')
       } else {
+        console.error('Frontend: Update failed:', result)
         alert(result.error || 'Erreur lors de la mise à jour du message')
       }
     } catch (error) {
@@ -254,7 +283,7 @@ export default function AdminContactsPage() {
     form.reset({
       status: contact.status,
       priority: contact.priority,
-      assignedTo: contact.assignedTo?._id || '',
+      assignedTo: contact.assignedTo?._id || 'unassigned',
       tags: contact.tags.join(', '),
       note: '',
     })
@@ -329,6 +358,48 @@ export default function AdminContactsPage() {
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  const handleSendReply = async (data: ReplyFormValues) => {
+    if (!selectedContact) return
+
+    try {
+      setIsSendingReply(true)
+      
+      const response = await fetch(`/api/admin/contacts/${selectedContact._id}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setIsReplyDialogOpen(false)
+        setSelectedContact(null)
+        fetchContacts(pagination.page)
+        alert('Réponse envoyée avec succès!')
+      } else {
+        alert(result.error || 'Erreur lors de l\'envoi de la réponse')
+      }
+    } catch (error) {
+      console.error('Error sending reply:', error)
+      alert('Erreur lors de l\'envoi de la réponse')
+    } finally {
+      setIsSendingReply(false)
+    }
+  }
+
+  const openReplyDialog = (contact: Contact) => {
+    setSelectedContact(contact)
+    replyForm.reset({
+      subject: `Re: ${contact.subject}`,
+      message: '',
+      includeOriginal: false,
+    })
+    setIsReplyDialogOpen(true)
   }
 
   return (
@@ -710,6 +781,34 @@ export default function AdminContactsPage() {
                   </div>
                 </div>
               </div>
+
+              <div className="flex justify-end gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDetailDialogOpen(false)}
+                >
+                  Fermer
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsDetailDialogOpen(false)
+                    openEditDialog(selectedContact)
+                  }}
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Modifier
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsDetailDialogOpen(false)
+                    openReplyDialog(selectedContact)
+                  }}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Répondre
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
@@ -787,7 +886,7 @@ export default function AdminContactsPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Non assigné</SelectItem>
+                          <SelectItem value="unassigned">Non assigné</SelectItem>
                           {adminUsers.map((admin) => (
                             <SelectItem key={admin._id} value={admin._id}>
                               {admin.firstName} {admin.lastName}
@@ -850,6 +949,97 @@ export default function AdminContactsPage() {
                       <>
                         <Edit className="mr-2 h-4 w-4" />
                         Mettre à jour
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reply Contact Dialog */}
+      <Dialog open={isReplyDialogOpen} onOpenChange={setIsReplyDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Répondre au message</DialogTitle>
+          </DialogHeader>
+          {selectedContact && (
+            <Form {...replyForm}>
+              <form onSubmit={replyForm.handleSubmit(handleSendReply)} className="space-y-4">
+                <FormField
+                  control={replyForm.control}
+                  name="subject"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Objet</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Objet de la réponse" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={replyForm.control}
+                  name="message"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Message</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Écrivez votre réponse ici..."
+                          className="min-h-[100px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={replyForm.control}
+                  name="includeOriginal"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                          className="mt-1"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Inclure le message original dans la réponse
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsReplyDialogOpen(false)}
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={isSendingReply}>
+                    {isSendingReply ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Envoi...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-4 w-4" />
+                        Envoyer
                       </>
                     )}
                   </Button>

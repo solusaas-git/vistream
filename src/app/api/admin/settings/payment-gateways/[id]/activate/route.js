@@ -27,13 +27,7 @@ export async function POST(request, { params }) {
       )
     }
 
-    // Deactivate all other gateways first
-    await PaymentGateway.updateMany(
-      { _id: { $ne: id } },
-      { isActive: false }
-    )
-
-    // Activate this gateway
+    // Activate this gateway (allow multiple active gateways)
     gateway.isActive = true
     gateway.status = 'active'
     gateway.updatedBy = user.userId

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { AuthenticatedUser } from './rbac'
+import { getClientIP as getIP } from './ip-utils'
 
 interface RateLimitStore {
   [key: string]: {
@@ -68,7 +69,7 @@ export function rateLimit(request: NextRequest, config: RateLimitConfig, user?: 
   }
 
   // Get client IP
-  const ip = getClientIP(request)
+  const ip = getIP(request)
   const key = `${ip}:${request.nextUrl.pathname}`
   
   const now = Date.now()
@@ -107,27 +108,7 @@ export function rateLimit(request: NextRequest, config: RateLimitConfig, user?: 
   }
 }
 
-function getClientIP(request: NextRequest): string {
-  // Try to get real IP from various headers
-  const forwarded = request.headers.get('x-forwarded-for')
-  const realIP = request.headers.get('x-real-ip')
-  const cfConnectingIP = request.headers.get('cf-connecting-ip')
-  
-  if (forwarded) {
-    return forwarded.split(',')[0].trim()
-  }
-  
-  if (realIP) {
-    return realIP
-  }
-  
-  if (cfConnectingIP) {
-    return cfConnectingIP
-  }
-  
-  // Fallback to unknown if no IP found
-  return 'unknown'
-}
+
 
 export function createRateLimitResponse(resetTime: number) {
   const resetDate = new Date(resetTime)

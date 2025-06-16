@@ -6,7 +6,7 @@ export interface ISubscription extends Document {
   planName: string
   planPrice: string
   planPeriod: string
-  status: 'active' | 'inactive' | 'cancelled' | 'expired'
+  status: 'active' | 'inactive' | 'cancelled' | 'expired' | 'pending'
   startDate: Date
   endDate?: Date
   autoRenew: boolean
@@ -45,7 +45,7 @@ const SubscriptionSchema = new Schema<ISubscription>({
   },
   status: {
     type: String,
-    enum: ['active', 'inactive', 'cancelled', 'expired'],
+    enum: ['active', 'inactive', 'cancelled', 'expired', 'pending'],
     default: 'active',
     index: true
   },
@@ -119,4 +119,9 @@ SubscriptionSchema.pre('save', function(next) {
   next()
 })
 
-export default mongoose.models.Subscription || mongoose.model<ISubscription>('Subscription', SubscriptionSchema) 
+// Force delete the model from cache to ensure schema updates
+if (mongoose.models.Subscription) {
+  delete mongoose.models.Subscription
+}
+
+export default mongoose.model<ISubscription>('Subscription', SubscriptionSchema) 
