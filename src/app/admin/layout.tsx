@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useUnreadMessagesCount } from '@/hooks/useUnreadMessagesCount'
 import { 
   Users, 
   Settings, 
@@ -45,6 +46,9 @@ export default function AdminLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
+  // Only fetch unread count for admin and user roles who can access messages
+  const shouldFetchUnreadCount = user?.role === 'admin' || user?.role === 'user'
+  const { unreadCount } = useUnreadMessagesCount(shouldFetchUnreadCount)
 
   const checkAuth = useCallback(async () => {
     try {
@@ -288,6 +292,9 @@ export default function AdminLayout({
           <nav className="p-3 sm:p-4 space-y-1 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
             {navigation.map((item) => {
               const isActive = pathname === item.href
+              const isMessagesItem = item.href === '/admin/contacts'
+              const showBadge = isMessagesItem && unreadCount > 0
+              
               return (
               <Link
                 key={item.name}
@@ -305,6 +312,14 @@ export default function AdminLayout({
                   <div className="flex items-center space-x-3 min-w-0">
                     <item.icon className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${isActive ? 'text-white' : ''}`} />
                     <span className="truncate">{item.name}</span>
+                    {showBadge && (
+                      <Badge 
+                        variant="destructive" 
+                        className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs bg-red-500 text-white border-0 animate-pulse"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Badge>
+                    )}
                   </div>
                   {isActive && (
                     <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
