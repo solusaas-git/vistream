@@ -548,10 +548,10 @@ export default function AdminMarketingPage() {
               </div>
 
               {/* Liens générés */}
-              {generatedLinks && (
+              {generatedLinks && Object.keys(generatedLinks).length > 0 && (
                 <div className="mt-8">
                   <h3 className="text-lg font-semibold mb-4">
-                    Liens marketing pour {generatedLinks.email.split('?')[0].split('/').pop()}
+                    Liens marketing pour {Object.values(generatedLinks)[0] ? Object.values(generatedLinks)[0].split('?')[0].split('/').pop() : 'Plan sélectionné'}
                   </h3>
                   <div className="space-y-4">
                     {Object.entries(generatedLinks).map(([type, link]) => (

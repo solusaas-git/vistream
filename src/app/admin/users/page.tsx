@@ -169,6 +169,20 @@ export default function AdminUsersPage() {
     resolver: zodResolver(editUserSchema),
   })
 
+  // Map tab values to API role values
+  const getApiRole = (tabValue: string): string => {
+    switch (tabValue) {
+      case 'users':
+        return 'user'
+      case 'customers':
+        return 'customer'
+      case 'admins':
+        return 'admin'
+      default:
+        return tabValue
+    }
+  }
+
   // Update URL when tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value)
@@ -177,11 +191,12 @@ export default function AdminUsersPage() {
     router.push(`?${params.toString()}`, { scroll: false })
   }
 
-  const fetchUsers = useCallback(async (role: string, page: number = 1) => {
+  const fetchUsers = useCallback(async (tabValue: string, page: number = 1) => {
     try {
       setLoading(true)
+      const apiRole = getApiRole(tabValue)
       const params = new URLSearchParams({
-        role,
+        role: apiRole,
         page: page.toString(),
         limit: '10'
       })
@@ -196,18 +211,18 @@ export default function AdminUsersPage() {
       if (data.success) {
         const { users, pagination } = data.data
         
-        if (role === 'admin') {
+        if (tabValue === 'admins') {
           setAdmins(users)
           setAdminsPagination(pagination)
-        } else if (role === 'user') {
+        } else if (tabValue === 'users') {
           setUsers(users)
           setUsersPagination(pagination)
-        } else if (role === 'customer') {
+        } else if (tabValue === 'customers') {
           setCustomers(users)
           setCustomersPagination(pagination)
         }
       } else {
-        console.error('Erreur lors du chargement des utilisateurs')
+        console.error('Erreur lors du chargement des utilisateurs:', data.error)
       }
     } catch (error) {
       console.error('Error fetching users:', error)
@@ -576,7 +591,7 @@ export default function AdminUsersPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchUsers(role, pagination.page - 1)}
+            onClick={() => fetchUsers(activeTab, pagination.page - 1)}
             disabled={!pagination.hasPrev}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -585,7 +600,7 @@ export default function AdminUsersPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchUsers(role, pagination.page + 1)}
+            onClick={() => fetchUsers(activeTab, pagination.page + 1)}
             disabled={!pagination.hasNext}
           >
             Suivant

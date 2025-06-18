@@ -45,8 +45,15 @@ export const GET = withAuth(async (request: NextRequest, user) => {
     const filter: any = {}
     
     // Role-based filtering
-    if (user.role === 'user') {
-      // Users can only see customers they are affiliated with
+    if (user.role === 'admin') {
+      // Admins can see ALL users without any affiliation restriction
+      // Simply apply role filter if specified
+      if (role) {
+        filter.role = role
+      }
+
+    } else if (user.role === 'user') {
+      // Users with affiliation codes can only see customers they are affiliated with
       // Find subscriptions where this user is the affiliated user
       const affiliatedSubscriptions = await Subscription.find({ 
         affiliatedUserId: user.userId 
@@ -55,7 +62,7 @@ export const GET = withAuth(async (request: NextRequest, user) => {
       const affiliatedUserIds = affiliatedSubscriptions.map(sub => sub.userId)
       
       if (affiliatedUserIds.length === 0) {
-        // No affiliated customers, return empty result
+        // No affiliated customers found, show empty result for users
         return NextResponse.json({
           success: true,
           data: {
@@ -70,14 +77,9 @@ export const GET = withAuth(async (request: NextRequest, user) => {
             }
           }
         })
-      }
-      
-      filter._id = { $in: affiliatedUserIds }
-      filter.role = 'customer' // Users can only see customers
-    } else if (user.role === 'admin') {
-      // Admins can see all users, apply role filter if specified
-      if (role) {
-        filter.role = role
+      } else {
+        filter._id = { $in: affiliatedUserIds }
+        filter.role = 'customer' // Users can only see customers
       }
     } else {
       // Customers shouldn't access this endpoint
