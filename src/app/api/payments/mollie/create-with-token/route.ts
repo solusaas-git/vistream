@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       },
       description: validatedData.description,
       cardToken: validatedData.cardToken,
-      redirectUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/auth/complete-payment?success=true`,
+      redirectUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/auth/payment?success=true`,
       webhookUrl: `https://ecda-196-119-62-0.ngrok-free.app/api/webhooks/mollie`,
       metadata: {
         ...validatedData.metadata,

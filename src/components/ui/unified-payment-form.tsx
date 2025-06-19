@@ -53,7 +53,7 @@ export function UnifiedPaymentForm({
           provider: 'mollie',
           customerEmail: customerEmail || 'test@example.com',
           customerName: customerName || 'Client Test',
-          redirectUrl: `${window.location.origin}/auth/complete-payment?success=true`,
+          redirectUrl: `${window.location.origin}/auth/payment?success=true`,
           // webhookUrl: `https://ecda-196-119-62-0.ngrok-free.app/api/webhooks/mollie`, // Disabled for development
           metadata: {
             ...metadata,

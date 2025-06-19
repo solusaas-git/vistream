@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
   const authRoutes = ['/auth/login', '/auth/signup', '/auth/activate', '/auth/forgot-password']
   
   // Payment completion route (should not redirect)
-  const paymentRoutes = ['/auth/complete-payment']
+  const paymentRoutes = ['/auth/payment']
   
   // Check if the current path is protected
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
@@ -128,7 +128,7 @@ export async function middleware(request: NextRequest) {
                 retryCount++
                 continue
               }
-            return NextResponse.redirect(new URL('/auth/complete-payment', request.url))
+            return NextResponse.redirect(new URL('/auth/payment', request.url))
           }
           
           // If customer has no subscription or inactive subscription, redirect to signup
@@ -152,9 +152,9 @@ export async function middleware(request: NextRequest) {
     }
   }
   
-  // Special handling for complete-payment page
-  if (pathname === '/auth/complete-payment') {
-    // Allow access to complete-payment page regardless of authentication status
+  // Special handling for payment page
+  if (pathname === '/auth/payment') {
+    // Allow access to payment page regardless of authentication status
     // The page itself will handle authentication and show appropriate messages
     // This is important for users returning from payment providers like Mollie
     return NextResponse.next()
@@ -190,14 +190,14 @@ export async function middleware(request: NextRequest) {
           // Admins and users go directly to admin panel
           return NextResponse.redirect(new URL('/admin', request.url))
         } else if (statusData.user && statusData.user.role === 'customer') {
-          // Customers go to complete-payment for subscription check
-          return NextResponse.redirect(new URL('/auth/complete-payment', request.url))
+          // Customers go to payment for subscription check
+          return NextResponse.redirect(new URL('/auth/payment', request.url))
         }
       }
     } catch (error) {
       console.error('Error checking user role for auth route redirect:', error)
-      // On error, redirect to complete-payment as fallback
-      return NextResponse.redirect(new URL('/auth/complete-payment', request.url))
+      // On error, redirect to payment as fallback
+      return NextResponse.redirect(new URL('/auth/payment', request.url))
     }
   }
   

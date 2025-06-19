@@ -62,11 +62,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Additional check: Look for any payment with same metadata (even if different status)
+    // Additional check: Look for any payment with same metadata (but only pending/processing ones)
     // to handle cases where webhook already processed one of the duplicates
+    // Exclude completed/failed payments to allow renewals and legitimate repeat payments
     const anyExistingPayment = await Payment.findOne({
       userId: user.userId,
       provider: 'stripe',
+      status: { $in: ['pending', 'processing'] }, // Only check pending/processing, not completed
       'amount.value': validatedData.amount,
       'amount.currency': validatedData.currency,
       description: validatedData.description,
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
     }).sort({ createdAt: -1 })
 
     if (anyExistingPayment && anyExistingPayment.stripeData?.clientSecret) {
-      console.log('Returning existing payment intent (any status):', {
+      console.log('Returning existing payment intent (pending/processing only):', {
         paymentIntentId: anyExistingPayment.stripeData.paymentIntentId,
         amount: validatedData.amount,
         currency: validatedData.currency,

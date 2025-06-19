@@ -10,363 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Eye, EyeOff, UserPlus, Mail, Lock, User, Loader2, Phone, ChevronDown, Star, Check, Crown, Shield, Hash, CreditCard, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, UserPlus, Mail, Lock, User, Loader2, Phone, Star, Check, Crown, Shield, Hash, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { UnifiedPaymentForm } from '@/components/ui/unified-payment-form'
 
-// Payment Gateway Interface
-interface PaymentGateway {
-  id: string
-  provider: string
-  displayName: string
-  description: string
-  supportedCurrencies: string[]
-  supportedPaymentMethods: string[]
-  fees: {
-    fixedFee: number
-    percentageFee: number
-    currency: string
-  }
-  limits: {
-    minAmount: number
-    maxAmount: number
-    currency: string
-  }
-  priority: number
-  isRecommended: boolean
-}
-
-// Payment Method Selector Component
-interface PaymentMethodSelectorProps {
-  amount: number
-  currency: string
-  description: string
-  customerEmail?: string
-  customerName?: string
-  metadata?: Record<string, any>
-  onSuccess: (result: any) => void
-  onError: (error: string) => void
-}
-
-function PaymentMethodSelector({
-  amount,
-  currency,
-  description,
-  customerEmail,
-  customerName,
-  metadata,
-  onSuccess,
-  onError
-}: PaymentMethodSelectorProps) {
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
-  const [availableGateways, setAvailableGateways] = useState<PaymentGateway[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchGateways = async () => {
-      try {
-        const response = await fetch('/api/payments/gateways')
-        const data = await response.json()
-        
-        if (data.success) {
-          setAvailableGateways(data.gateways)
-        } else {
-          setError('Erreur lors du chargement des méthodes de paiement')
-        }
-      } catch (err) {
-        setError('Erreur de connexion')
-        console.error('Error fetching gateways:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchGateways()
-  }, [])
-
-  const getProviderIcon = (provider: string) => {
-    switch (provider.toLowerCase()) {
-      case 'mollie':
-        return <CreditCard className="h-6 w-6 text-blue-600" />
-      case 'stripe':
-        return <CreditCard className="h-6 w-6 text-purple-600" />
-      case 'paypal':
-        return <CreditCard className="h-6 w-6 text-blue-500" />
-      default:
-        return <CreditCard className="h-6 w-6 text-gray-600" />
-    }
-  }
-
-  const getProviderBadge = (gateway: PaymentGateway) => {
-    if (gateway.isRecommended) {
-      return { text: 'Recommandé', className: 'bg-green-100 text-green-700' }
-    }
-    return { text: 'Autres options', className: 'bg-blue-100 text-blue-700' }
-  }
-
-  const getProviderDetails = (provider: string) => {
-    switch (provider.toLowerCase()) {
-      case 'stripe':
-        return {
-          subtitle: 'Paiement intégré et sécurisé - Pas de redirection',
-          methods: 'Visa, Mastercard, etc.',
-          timing: 'Immédiat'
-        }
-      case 'mollie':
-        return {
-          subtitle: 'Bancontact, iDEAL, PayPal, Virement',
-          methods: 'Méthodes européennes',
-          timing: 'Redirection'
-        }
-      case 'paypal':
-        return {
-          subtitle: 'Paiement via votre compte PayPal',
-          methods: 'PayPal, cartes',
-          timing: 'Redirection'
-        }
-      default:
-        return {
-          subtitle: 'Méthode de paiement sécurisée',
-          methods: 'Divers',
-          timing: 'Variable'
-        }
-    }
-  }
-
-  if (selectedProvider) {
-    return (
-      <div className="space-y-4">
-        <Button
-          variant="outline"
-          onClick={() => setSelectedProvider(null)}
-          className="mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Changer de méthode
-        </Button>
-        
-        <UnifiedPaymentForm
-          provider={selectedProvider}
-          amount={amount}
-          currency={currency}
-          description={description}
-          customerEmail={customerEmail}
-          customerName={customerName}
-          metadata={metadata}
-          onSuccess={onSuccess}
-          onError={onError}
-        />
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="text-center mb-6">
-          <h3 className="text-lg font-semibold mb-2">Choisissez votre méthode de paiement</h3>
-          <p className="text-sm text-muted-foreground">
-            Chargement des méthodes disponibles...
-          </p>
-        </div>
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin mr-2" />
-          <span className="text-sm text-muted-foreground">Chargement...</span>
-        </div>
-      </div>
-    )
-  }
-
-  if (error || availableGateways.length === 0) {
-    return (
-      <div className="space-y-4">
-        <div className="text-center mb-6">
-          <h3 className="text-lg font-semibold mb-2">Méthodes de paiement</h3>
-        </div>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800 text-sm">
-            {error || 'Aucune méthode de paiement disponible pour le moment.'}
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="text-center mb-6">
-        <h3 className="text-lg font-semibold mb-2">Choisissez votre méthode de paiement</h3>
-        <p className="text-sm text-muted-foreground">
-          Sélectionnez la méthode qui vous convient le mieux
-        </p>
-      </div>
-
-      <div className="grid gap-4">
-        {availableGateways.map((gateway) => {
-          const badge = getProviderBadge(gateway)
-          const details = getProviderDetails(gateway.provider)
-          
-          return (
-            <Card 
-              key={gateway.id}
-              className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/50"
-              onClick={() => setSelectedProvider(gateway.provider)}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gray-100 rounded-full">
-                      {getProviderIcon(gateway.provider)}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold">{gateway.displayName}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {gateway.description || details.subtitle}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs px-2 py-1 rounded ${badge.className}`}>
-                          {badge.text}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {details.methods}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold">{amount}€</div>
-                    <div className="text-xs text-muted-foreground">{details.timing}</div>
-                    {gateway.fees.percentageFee > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        +{gateway.fees.percentageFee}% frais
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      <div className="text-xs text-muted-foreground text-center mt-4">
-        Tous les paiements sont sécurisés et cryptés
-      </div>
-
-      {/* Security and Payment Cards Section */}
-      <div className="mt-8 pt-6 border-t border-gray-200">
-        <div className="text-center space-y-4">
-          {/* Security Badges */}
-          <div className="flex flex-col items-center space-y-3">
-            <h4 className="text-sm font-medium text-gray-700">Paiement 100% sécurisé</h4>
-            <div className="flex items-center justify-center space-x-4">
-              <Image
-                src="/logos/security/sectigo-ssl.png"
-                alt="SSL Secure"
-                width={82}
-                height={32}
-                className="h-8 w-auto"
-              />
-              <Image
-                src="/logos/security/ssl-secure-badge.png"
-                alt="SSL Certificate"
-                width={167}
-                height={42}
-                className="h-8 w-auto"
-              />
-              <Image
-                src="/logos/security/sectigo-secure.png"
-                alt="Trusted Security"
-                width={106}
-                height={42}
-                className="h-8 w-auto"
-              />
-            </div>
-          </div>
-
-          {/* Payment Cards */}
-          <div className="flex flex-col items-center space-y-3">
-            <h4 className="text-sm font-medium text-gray-700">Cartes acceptées</h4>
-            <div className="flex items-center justify-center space-x-3">
-              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                <Image
-                  src="/logos/payment/visa.svg"
-                  alt="Visa"
-                  width={80}
-                  height={28}
-                  className="h-7 w-auto"
-                />
-              </div>
-              
-              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                <Image
-                  src="/logos/payment/mastercard.svg"
-                  alt="Mastercard"
-                  width={80}
-                  height={28}
-                  className="h-7 w-auto"
-                />
-              </div>
-              
-              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                <Image
-                  src="/logos/payment/amex.svg"
-                  alt="American Express"
-                  width={80}
-                  height={28}
-                  className="h-7 w-auto"
-                />
-              </div>
-              
-              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                <Image
-                  src="/logos/payment/paypal.svg"
-                  alt="PayPal"
-                  width={80}
-                  height={28}
-                  className="h-7 w-auto"
-                />
-              </div>
-              
-              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                <Image
-                  src="/logos/payment/apple-pay.svg"
-                  alt="Apple Pay"
-                  width={80}
-                  height={28}
-                  className="h-7 w-auto"
-                />
-              </div>
-              
-              <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                <Image
-                  src="/logos/payment/google-pay.svg"
-                  alt="Google Pay"
-                  width={80}
-                  height={28}
-                  className="h-7 w-auto"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Trust Message */}
-          <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-3 max-w-2xl mx-auto shadow-sm">
-            <div className="flex items-center justify-center space-x-2">
-              <Shield className="h-5 w-5 text-green-600 flex-shrink-0" />
-              <span className="text-sm font-semibold text-gray-800">
-                🔒 Vos données sont protégées et ne sont jamais stockées sur nos serveurs
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 const signupSchema = z.object({
   firstName: z.string().min(2, "Le prénom doit contenir au moins 2 caractères.").max(50),
@@ -415,8 +63,7 @@ function SignupForm() {
   const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null)
   const [availablePlans, setAvailablePlans] = useState<Plan[]>([])
   const [plansLoading, setPlansLoading] = useState(true)
-  const [signupStep, setSignupStep] = useState<'form' | 'payment' | 'success'>('form')
-  const [createdUser, setCreatedUser] = useState<any>(null)
+  const [signupStep, setSignupStep] = useState<'form' | 'success'>('form')
   const [paymentError, setPaymentError] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchParams = useSearchParams()
@@ -703,18 +350,81 @@ function SignupForm() {
         // Check if the error is about existing user but we actually got user data
         if (result.error?.includes('existe déjà') && result.user) {
           console.log('User already exists but got user data, proceeding to payment:', result)
-          setCreatedUser(result.user)
-          setSignupStep('payment')
-          return
+          
+          // Create payment session and redirect to centralized payment page
+          const planForExistingUser = availablePlans.find(p => p._id === data.selectedPlanId)
+          if (planForExistingUser) {
+            try {
+              const sessionResponse = await fetch('/api/payments/session', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  type: 'subscription',
+                  planId: planForExistingUser._id,
+                  subscriptionId: null // New subscription
+                }),
+              })
+
+              const sessionData = await sessionResponse.json()
+
+              if (sessionData.success) {
+                // Redirect to centralized payment page
+                window.location.href = '/auth/payment'
+                return
+              } else {
+                throw new Error('Erreur lors de la création de la session de paiement: ' + (sessionData.error || 'Erreur inconnue'))
+              }
+            } catch (sessionError) {
+              console.error('Error creating payment session for existing user:', sessionError)
+              setPaymentError(sessionError instanceof Error ? sessionError.message : 'Erreur lors de la création de la session de paiement')
+              return
+            }
+          } else {
+            setPaymentError('Plan sélectionné non trouvé')
+            return
+          }
         }
         throw new Error(result.error || 'Erreur lors de l\'inscription')
       }
 
       console.log('Signup successful:', result)
       
-      // Store user data and move to payment step
-      setCreatedUser(result.user)
-      setSignupStep('payment')
+      // Create payment session for the selected plan and redirect to centralized payment page
+      const planForSession = availablePlans.find(p => p._id === data.selectedPlanId)
+      if (planForSession) {
+        try {
+          const sessionResponse = await fetch('/api/payments/session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              type: 'subscription',
+              planId: planForSession._id,
+              subscriptionId: null // New subscription
+            }),
+          })
+
+          const sessionData = await sessionResponse.json()
+
+          if (sessionData.success) {
+            // Redirect to centralized payment page
+            window.location.href = '/auth/payment'
+            return
+          } else {
+            throw new Error('Erreur lors de la création de la session de paiement: ' + (sessionData.error || 'Erreur inconnue'))
+          }
+        } catch (sessionError) {
+          console.error('Error creating payment session:', sessionError)
+          setPaymentError(sessionError instanceof Error ? sessionError.message : 'Erreur lors de la création de la session de paiement')
+          return
+        }
+      } else {
+        setPaymentError('Plan sélectionné non trouvé')
+        return
+      }
       
     } catch (error) {
       console.error('Signup error:', error)
@@ -724,22 +434,7 @@ function SignupForm() {
     }
   }
 
-  // Handle successful payment
-  const handlePaymentSuccess = (paymentResult: any) => {
-    console.log('Payment successful:', paymentResult)
-    setSignupStep('success')
-    
-    // Redirect to admin subscription page after a short delay
-    setTimeout(() => {
-      window.location.href = '/admin/subscription'
-    }, 3000)
-  }
-
-  // Handle payment error
-  const handlePaymentError = (error: string) => {
-    console.error('Payment error:', error)
-    setPaymentError(error)
-  }
+  // Payment handling functions removed since we now redirect to centralized payment page
 
   // Render different steps
   if (signupStep === 'success') {
@@ -766,108 +461,9 @@ function SignupForm() {
     )
   }
 
-  if (signupStep === 'payment' && createdUser && selectedPlan) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-start justify-center pt-8 sm:pt-12 pb-4 sm:pb-8 px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-4xl">
-          {/* Header */}
-          <div className="text-center mb-6 sm:mb-8">
-            <div className="flex justify-center mb-3 sm:mb-4">
-              <div className="p-2 sm:p-3 bg-gray-800 rounded-full shadow-md border border-gray-700">
-                <Image
-                  src="/logo.svg"
-                  alt="Vistream Logo"
-                  width={48}
-                  height={48}
-                  className="w-10 h-10 sm:w-12 sm:h-12"
-                />
-              </div>
-            </div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Finaliser votre inscription</h1>
-            <p className="text-muted-foreground mt-1 sm:mt-2 text-sm sm:text-base">
-              Bonjour {createdUser.firstName}, finalisez votre abonnement {selectedPlan.name}
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Plan Summary */}
-            <div className="lg:order-2">
-              <Card className="shadow-lg border-0 sticky top-8">
-                <CardHeader className="text-center pb-4">
-                  <CardTitle className="text-xl mb-2 flex items-center justify-center gap-2">
-                    {getPlanIcon(selectedPlan.name)}
-                    {selectedPlan.name}
-                  </CardTitle>
-                  <div className="mb-4">
-                    <div className="flex items-baseline justify-center space-x-1">
-                      <span className="text-3xl font-bold text-primary">
-                        {selectedPlan.price}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        /{selectedPlan.period}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{selectedPlan.description}</p>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-3">
-                    <div className="flex items-center text-sm">
-                      <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                      <span>Compte créé avec succès</span>
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <CreditCard className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0" />
-                      <span>Paiement sécurisé</span>
-                    </div>
-                    <div className="flex items-center text-sm">
-                      <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                      <span>Activation immédiate</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
 
-            {/* Payment Form */}
-            <div className="lg:col-span-2 lg:order-1">
-              <Card className="shadow-lg border-0">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    Paiement
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {paymentError && (
-                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-red-600 text-sm">{paymentError}</p>
-                    </div>
-                  )}
-                  
-                  <PaymentMethodSelector
-                    amount={parseFloat(selectedPlan.price)}
-                    currency="EUR"
-                    description={`Abonnement ${selectedPlan.name} - ${selectedPlan.period}`}
-                    customerEmail={createdUser.email}
-                    customerName={`${createdUser.firstName} ${createdUser.lastName}`}
-                    metadata={{
-                      userId: createdUser._id,
-                      planId: selectedPlan.id,
-                      planName: selectedPlan.name,
-                      source: 'signup'
-                    }}
-                    onSuccess={handlePaymentSuccess}
-                    onError={handlePaymentError}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-start justify-center pt-8 sm:pt-12 pb-4 sm:pb-8 px-4 sm:px-6 lg:px-8">

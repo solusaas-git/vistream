@@ -353,7 +353,7 @@ export default function UpgradePaymentPage() {
       console.log('Payment success result:', paymentResult)
       
       // For Stripe, we get the payment intent ID, for Mollie we get the payment ID
-      const paymentId = paymentResult.paymentId || paymentResult.id || paymentData?.id
+      const paymentId = paymentResult.paymentId || paymentResult.paymentIntentId || paymentResult.id || paymentData?.id
       
       console.log('Extracted payment ID:', paymentId)
       console.log('Payment data ID:', paymentData?.id)

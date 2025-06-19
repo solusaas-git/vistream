@@ -69,6 +69,7 @@ export default function CustomerSubscriptionPage() {
   const [availablePlans, setAvailablePlans] = useState<Plan[]>([])
   const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false)
   const [upgradeError, setUpgradeError] = useState<string>('')
+  const [isUpgrading, setIsUpgrading] = useState(false)
 
   useEffect(() => {
     fetchUserData()
@@ -138,14 +139,47 @@ export default function CustomerSubscriptionPage() {
     setUpgradeError('')
   }
 
-  const handlePlanUpgrade = (planId: string) => {
-    // Redirect to upgrade payment page without provider - user will choose on payment page
-    router.push(`/admin/upgrade-payment?planId=${planId}`)
+  const handlePlanUpgrade = async (planId: string) => {
+    if (!subscription) return
+
+    setIsUpgrading(true)
+    setUpgradeError('')
+    
+    try {
+      // Create payment session for upgrade
+      const response = await fetch('/api/payments/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'upgrade',
+          planId: planId,
+          subscriptionId: subscription._id
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Close the dialog and redirect to payment page
+        setIsUpgradeDialogOpen(false)
+        router.push('/auth/payment')
+      } else {
+        setUpgradeError(data.error || 'Erreur lors de la création de la session de paiement')
+      }
+    } catch (error) {
+      console.error('Error creating upgrade session:', error)
+      setUpgradeError('Erreur de connexion')
+    } finally {
+      setIsUpgrading(false)
+    }
   }
 
   const resetUpgradeDialog = () => {
     setIsUpgradeDialogOpen(false)
     setUpgradeError('')
+    setIsUpgrading(false)
   }
 
   const handleRefresh = async () => {
@@ -157,12 +191,9 @@ export default function CustomerSubscriptionPage() {
     ])
   }
 
-  const handleRenewal = (planId?: string) => {
-    // Use current plan ID if no specific plan is provided
-    const renewalPlanId = planId || subscription?.planId
-    if (renewalPlanId) {
-      router.push(`/admin/upgrade-payment?planId=${renewalPlanId}&renewal=true`)
-    }
+  const handleRenewal = () => {
+    // Redirect to new renewal page
+    router.push('/admin/renewal')
   }
 
   const getDaysUntilExpiry = () => {
@@ -582,8 +613,12 @@ export default function CustomerSubscriptionPage() {
                 {getAvailableUpgradePlans().map((plan) => (
                   <Card 
                     key={plan._id} 
-                    className="cursor-pointer transition-all hover:shadow-md hover:ring-2 hover:ring-blue-500"
-                                                    onClick={() => handlePlanUpgrade(plan._id)}
+                    className={`transition-all ${
+                      isUpgrading 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'cursor-pointer hover:shadow-md hover:ring-2 hover:ring-blue-500'
+                    }`}
+                    onClick={() => !isUpgrading && handlePlanUpgrade(plan._id)}
                   >
                     <CardHeader className="text-center pb-2">
                       <div className="flex items-center justify-center mb-2">
@@ -610,8 +645,19 @@ export default function CustomerSubscriptionPage() {
                           </li>
                         )}
                       </ul>
-                      <Button className="w-full mt-4" size="sm">
-                        Choisir ce plan
+                      <Button 
+                        className="w-full mt-4" 
+                        size="sm"
+                        disabled={isUpgrading}
+                      >
+                        {isUpgrading ? (
+                          <>
+                            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                            Préparation...
+                          </>
+                        ) : (
+                          'Choisir ce plan'
+                        )}
                       </Button>
                     </CardContent>
                   </Card>

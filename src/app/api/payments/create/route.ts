@@ -30,6 +30,10 @@ type CreatePaymentRequest = z.infer<typeof createPaymentSchema>
 async function createMolliePayment(validatedData: CreatePaymentRequest, user: any, redirectUrl: string) {
   const mollieService = await MollieService.fromActiveGateway()
   
+  // Get the gateway configuration to extract webhook URL
+  const gateway = await MollieService.getActiveGateway()
+  const configuredWebhookUrl = gateway?.configuration?.webhookUrl
+  
   const paymentData: MolliePaymentData = {
     amount: MollieService.formatAmount(validatedData.amount, validatedData.currency),
     description: validatedData.description,
@@ -43,12 +47,21 @@ async function createMolliePayment(validatedData: CreatePaymentRequest, user: an
     },
   }
 
-  // Add optional fields (skip webhook only for localhost, allow ngrok URLs)
-  if (validatedData.webhookUrl && 
+  // Add webhook URL - prioritize configured webhook URL from database
+  if (configuredWebhookUrl && 
+      !configuredWebhookUrl.includes('localhost') && 
+      !configuredWebhookUrl.includes('127.0.0.1')) {
+    paymentData.webhookUrl = configuredWebhookUrl
+    console.log('🔗 Using configured webhook URL for Mollie:', configuredWebhookUrl)
+  } else if (validatedData.webhookUrl && 
       !validatedData.webhookUrl.includes('localhost') && 
       !validatedData.webhookUrl.includes('127.0.0.1')) {
     paymentData.webhookUrl = validatedData.webhookUrl
+    console.log('🔗 Using provided webhook URL for Mollie:', validatedData.webhookUrl)
+  } else {
+    console.log('⚠️ No valid webhook URL configured for Mollie payment')
   }
+  
   if (validatedData.method) {
     paymentData.method = validatedData.method
   }
@@ -205,8 +218,8 @@ export async function POST(request: NextRequest) {
 
     // Generate redirect URL
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-    const redirectUrl = validatedData.redirectUrl || `${baseUrl}/auth/complete-payment?success=true`
-    const cancelUrl = `${baseUrl}/auth/complete-payment?cancelled=true`
+    const redirectUrl = validatedData.redirectUrl || `${baseUrl}/auth/payment?success=true`
+    const cancelUrl = `${baseUrl}/auth/payment?cancelled=true`
 
     let paymentResult
     let gateway
