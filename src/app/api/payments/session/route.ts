@@ -152,6 +152,15 @@ export async function POST(request: NextRequest) {
       userId: user._id.toString()
     }
 
+    // Check for existing subscription to get affiliation data
+    const existingSubscription = await Subscription.findOne({ userId: user._id }).sort({ createdAt: -1 })
+    if (existingSubscription && existingSubscription.affiliationCode) {
+      metadata.affiliationCode = existingSubscription.affiliationCode
+      if (existingSubscription.affiliatedUserId) {
+        metadata.affiliatedUserId = existingSubscription.affiliatedUserId.toString()
+      }
+    }
+
     // Handle different payment types
     if (type === 'upgrade' || type === 'renewal') {
       if (!subscriptionId) {
